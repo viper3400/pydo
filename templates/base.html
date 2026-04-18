@@ -12,7 +12,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
         <div class="container-lg">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <span class="badge bg-primary me-2">📝</span>PyTodo
+                <span class="badge bg-primary me-2">📝</span>PyDo
             </a>
             {% if config.AUTH_ENABLED and session.get('authenticated') %}
                 <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
