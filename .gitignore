@@ -44,6 +44,7 @@ instance/
 # Data
 data/
 *.txt
+!requirements.txt
 
 # Environment variables
 .env
