@@ -1,0 +1,290 @@
+"""
+Simple todo.txt web application using Flask.
+Follows Python best practices: separation of concerns, error handling, type hints.
+"""
+
+import os
+from pathlib import Path
+from flask import Flask, render_template, request, redirect, url_for, jsonify
+
+from todolib import TodoList
+
+# Configuration
+BASE_DIR = Path(__file__).parent
+TODOS_DIR = BASE_DIR / "data"
+TODOS_FILE = TODOS_DIR / "todo.txt"
+
+# Flask app setup
+app = Flask(__name__, template_folder="templates")
+app.config["ENV"] = "development"
+
+
+def get_todos():
+    """Get the current TodoList instance."""
+    return TodoList(TODOS_FILE)
+
+
+def sort_active_items(items):
+    """Sort active tasks for display: overdue, today, priority, then other due dates."""
+    from datetime import datetime
+
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    def sort_key(todo):
+        due = todo.custom_fields.get("due")
+        priority = todo.priority or "ZZ"
+
+        if due and due < today:
+            # Overdue first, oldest overdue first.
+            return (0, due, priority)
+        if due == today:
+            # Then tasks due today, with priority as tie-breaker.
+            return (1, priority, due)
+        if todo.priority:
+            # Then prioritized tasks (with/without due date).
+            return (2, priority, due or "9999-12-31")
+        if due:
+            # Then other due dates, sorted by date.
+            return (3, due, priority)
+        # Finally everything without due date/priority.
+        return (4, "9999-12-31", priority)
+
+    return sorted(items, key=sort_key)
+
+
+def get_template_context(todos, items, filter_by="active", filter_value=None):
+    """Build the template context with all necessary data."""
+    from datetime import datetime
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    active_items = todos.get_active()
+    active_projects = sorted({project for todo in active_items for project in todo.projects})
+    active_contexts = sorted({context for todo in active_items for context in todo.contexts})
+    active_priorities = sorted({todo.priority for todo in active_items if todo.priority})
+    active_waiting_for_people = sorted({
+        todo.custom_fields.get("waiting")
+        for todo in active_items
+        if todo.custom_fields.get("waiting")
+    })
+    due_today = [
+        todo for todo in active_items
+        if todo.custom_fields.get("due") == today
+    ]
+    due_soon = [
+        todo for todo in todos.get_due_soon()
+        if todo.custom_fields.get("due") != today
+    ]
+
+    return {
+        "todos": items,
+        "sidebar_todos": active_items,
+        "today": today,
+        "projects": active_projects,
+        "contexts": active_contexts,
+        "priorities": active_priorities,
+        "overdue": todos.get_overdue(),
+        "due_today": due_today,
+        "due_soon": due_soon,
+        "waiting_tasks": todos.get_waiting(),
+        "waiting_for_people": active_waiting_for_people,
+        "filter_by": filter_by,
+        "filter_value": filter_value,
+        "total_active": len(todos.get_active()),
+        "total_completed": len(todos.get_completed()),
+    }
+
+
+@app.route("/")
+def index():
+    """Display the main todo list."""
+    todos = get_todos()
+    filter_by = request.args.get("filter", "active")
+
+    if filter_by == "completed":
+        items = todos.get_completed()
+    elif filter_by == "all":
+        items = todos.todos
+    else:  # active (default)
+        items = sort_active_items(todos.get_active())
+
+    context = get_template_context(todos, items, filter_by)
+    return render_template("index.html", **context)
+
+
+@app.route("/add", methods=["POST"])
+def add_todo():
+    """Add a new todo."""
+    text = request.form.get("text", "").strip()
+    priority = request.form.get("priority", "").strip() or None
+
+    if not text:
+        return redirect(url_for("index"))
+
+    todos = get_todos()
+    todos.add(text, priority=priority)
+
+    return redirect(url_for("index"))
+
+
+@app.route("/toggle/<int:index>", methods=["POST"])
+def toggle_todo(index):
+    """Toggle a todo's completion status."""
+    line = request.form.get("line", "").strip()
+    todos = get_todos()
+
+    if line:
+        todos.toggle_by_line(line)
+    else:
+        todos.toggle(index)
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True})
+
+    return redirect(request.referrer or url_for("index"))
+
+
+@app.route("/delete/<int:index>", methods=["POST"])
+def delete_todo(index):
+    """Delete a todo."""
+    line = request.form.get("line", "").strip()
+    todos = get_todos()
+
+    if line:
+        todos.remove_by_line(line)
+    else:
+        todos.remove(index)
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True})
+
+    return redirect(request.referrer or url_for("index"))
+
+
+@app.route("/edit/<int:index>", methods=["POST"])
+def edit_todo(index):
+    """Edit a todo's text."""
+    old_line = request.form.get("line", "").strip()
+    new_text = request.form.get("text", "").strip()
+    new_priority = request.form.get("priority", "").strip() or None
+
+    if not new_text:
+        return jsonify({"success": False, "error": "Text cannot be empty"}), 400
+
+    todos = get_todos()
+    if old_line:
+        todos.update_by_line(old_line, new_text, priority=new_priority, update_priority=True)
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True})
+
+    return redirect(request.referrer or url_for("index"))
+
+
+@app.route("/project/<project>")
+def filter_project(project):
+    """Show todos for a specific project."""
+    todos = get_todos()
+    items = todos.get_by_project(project)
+    context = get_template_context(todos, items, "project", project)
+    return render_template("index.html", **context)
+
+
+@app.route("/context/<context>")
+def filter_context(context):
+    """Show todos for a specific context."""
+    todos = get_todos()
+    items = todos.get_by_context(context)
+    context_dict = get_template_context(todos, items, "context", context)
+    return render_template("index.html", **context_dict)
+
+
+@app.route("/due/<date>")
+def filter_due(date):
+    """Show todos due on a specific date."""
+    todos = get_todos()
+    items = [t for t in todos.todos if t.custom_fields.get('due') == date and not t.complete]
+    context = get_template_context(todos, items, "due", date)
+    return render_template("index.html", **context)
+
+
+@app.route("/waiting")
+def filter_waiting():
+    """Show all waiting tasks."""
+    todos = get_todos()
+    items = todos.get_waiting()
+    context = get_template_context(todos, items, "waiting")
+    return render_template("index.html", **context)
+
+
+@app.route("/waiting/<person>")
+def filter_waiting_for(person):
+    """Show tasks waiting for a specific person."""
+    todos = get_todos()
+    items = todos.get_waiting_for_person(person)
+    context = get_template_context(todos, items, "waiting_for", person)
+    return render_template("index.html", **context)
+
+
+@app.template_filter('count_with_project')
+def count_with_project(todos, project):
+    """Count todos that have a specific project."""
+    return len([t for t in todos if project in t.projects])
+
+
+@app.template_filter('count_with_context')
+def count_with_context(todos, context):
+    """Count todos that have a specific context."""
+    return len([t for t in todos if context in t.contexts])
+
+
+@app.template_filter('count_waiting_for')
+def count_waiting_for(todos, person):
+    """Count todos waiting for a specific person."""
+    return len([t for t in todos if t.custom_fields.get('waiting', '').lower() == person.lower()])
+
+
+@app.template_filter('count_with_priority')
+def count_with_priority(todos, priority):
+    """Count todos that have a specific priority."""
+    return len([t for t in todos if t.priority == priority])
+
+
+@app.template_filter('format_date')
+def format_date(date_str):
+    """Format date string for display (YYYY-MM-DD -> readable format)."""
+    from datetime import datetime
+    try:
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        return date_obj.strftime("%b %d, %Y")
+    except:
+        return date_str
+
+
+@app.template_filter('is_overdue')
+def is_overdue(date_str):
+    """Check if date is overdue (in the past)."""
+    from datetime import datetime
+    try:
+        return date_str < datetime.now().strftime("%Y-%m-%d")
+    except:
+        return False
+
+
+@app.errorhandler(404)
+def not_found(e):
+    """Handle 404 errors."""
+    return render_template("404.html"), 404
+
+
+@app.errorhandler(500)
+def server_error(e):
+    """Handle 500 errors."""
+    return render_template("500.html"), 500
+
+
+if __name__ == "__main__":
+    # Create data directory if it doesn't exist
+    TODOS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Run the app
+    app.run(debug=True, host="127.0.0.1", port=5000)

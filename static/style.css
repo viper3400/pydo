@@ -1,0 +1,244 @@
+/* PyTodo Custom Styles */
+
+:root {
+    --primary-color: #007bff;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --light-bg: #f8f9fa;
+    --border-color: #dee2e6;
+}
+
+body {
+    background-color: var(--light-bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Todo Item Styling */
+.todo-item {
+    transition: all 0.2s ease-in-out;
+    border: 1px solid var(--border-color);
+    border-left: 3px solid transparent;
+}
+
+.todo-item:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+    border-left-color: var(--primary-color);
+}
+
+.todo-item.completed {
+    background-color: #f0f8f5;
+    opacity: 0.75;
+}
+
+.todo-text {
+    font-size: 1rem;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.todo-text:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+}
+
+.todo-checkbox {
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+    margin-top: 0.25rem;
+}
+
+.task-text {
+    margin-left: 0.5rem;
+}
+
+.task-group-divider {
+    margin: 0.8rem 0 0.5rem;
+    border-bottom: 1px solid #ced4da;
+    line-height: 0.1em;
+}
+
+.task-group-divider span {
+    background: var(--light-bg);
+    color: #6c757d;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding-right: 0.5rem;
+}
+
+/* Priority Badges */
+.badge.priority-a {
+    background-color: #dc3545 !important;
+    font-weight: 600;
+}
+
+.badge.priority-b {
+    background-color: #fd7e14 !important;
+    font-weight: 600;
+}
+
+.badge.priority-c {
+    background-color: #20c997 !important;
+    color: #fff !important;
+    font-weight: 600;
+}
+
+/* Tag Styling */
+.badge {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.4rem 0.6rem;
+}
+
+.badge.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.badge.context-tag {
+    background-color: #0d6efd !important;
+    color: #fff !important;
+}
+
+/* Form Controls */
+.form-control, .form-select {
+    border-color: var(--border-color);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Delete Form */
+.delete-form {
+    display: inline;
+}
+
+/* Alert Styling */
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-10px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Sidebar Cards */
+.card {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.card.border-danger {
+    border: 2px solid #dc3545 !important;
+}
+
+.card.border-warning {
+    border: 2px solid #ffc107 !important;
+}
+
+.card.border-info {
+    border: 2px solid #17a2b8 !important;
+}
+
+.card-header {
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.list-group-item {
+    border-color: var(--border-color);
+    padding: 0.75rem 1rem;
+    transition: background-color 0.2s;
+}
+
+.list-group-item:hover {
+    background-color: var(--light-bg);
+}
+
+/* Navbar */
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+/* Tab Navigation */
+.nav-tabs {
+    border-color: var(--border-color);
+}
+
+.nav-tabs .nav-link {
+    color: #6c757d;
+    border-color: transparent;
+}
+
+.nav-tabs .nav-link.active {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+    .col-lg-4 {
+        margin-top: 2rem;
+    }
+
+    .todo-item .card-body {
+        flex-direction: column;
+    }
+
+    .form-control, .form-select {
+        max-width: 100% !important;
+    }
+}
+
+/* Accessibility */
+.form-check-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Smooth Transitions */
+a {
+    transition: color 0.2s;
+}
+
+button {
+    transition: all 0.2s;
+}
+
+/* Edit Form */
+.edit-form {
+    margin-top: 0.5rem;
+}
+
+.edit-form .edit-input {
+    font-size: 0.95rem;
+    padding: 0.4rem 0.5rem;
+}
+
+.edit-form .btn {
+    font-size: 0.85rem;
+    padding: 0.3rem 0.6rem;
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+    border-top: 1px solid var(--border-color);
+}

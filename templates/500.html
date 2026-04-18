@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="alert alert-danger text-center" role="alert">
+    <h4>500 - Server Error</h4>
+    <p class="mb-0">Something went wrong on our end. Please try again later.</p>
+    <a href="{{ url_for('index') }}" class="btn btn-primary mt-3">Go Back Home</a>
+</div>
+{% endblock %}
