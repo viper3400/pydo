@@ -1,0 +1,93 @@
+name: Docs And Agent Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+jobs:
+  docs-agent-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enforce README and AGENTS updates when required
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          CHANGED_FILES="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changed files detected."
+            exit 0
+          fi
+
+          README_CHANGED=0
+          AGENTS_CHANGED=0
+          if echo "$CHANGED_FILES" | grep -qx 'README.md'; then README_CHANGED=1; fi
+          if echo "$CHANGED_FILES" | grep -qx 'AGENTS.md'; then AGENTS_CHANGED=1; fi
+
+          PR_TEXT="${PR_TITLE}
+          ${PR_BODY:-}"
+
+          # Rule 1: README.md must be updated for non-doc code changes
+          CODE_CHANGED=0
+          while IFS= read -r file; do
+            case "$file" in
+              README.md|AGENTS.md|*.md|.github/*|.github/**)
+                ;;
+              *)
+                CODE_CHANGED=1
+                break
+                ;;
+            esac
+          done <<< "$CHANGED_FILES"
+
+          README_OK=1
+          if [ "$CODE_CHANGED" -eq 1 ] && [ "$README_CHANGED" -eq 0 ]; then
+            if echo "$PR_TEXT" | grep -Eiq '\[docs-skip\]'; then
+              echo "[docs-skip] found in PR title/body. Skipping README requirement."
+            else
+              echo "Code changed but README.md was not updated."
+              echo "Update README.md or add [docs-skip] to PR title/body with a reason."
+              README_OK=0
+            fi
+          fi
+
+          # Rule 2: AGENTS.md must be updated for repo-rules/tooling/security-impacting changes
+          AGENTS_RELEVANT_CHANGED=0
+          while IFS= read -r file; do
+            case "$file" in
+              app.py|todolib.py|requirements.txt|run.sh|.github/workflows/*|.github/workflows/**)
+                AGENTS_RELEVANT_CHANGED=1
+                break
+                ;;
+            esac
+          done <<< "$CHANGED_FILES"
+
+          AGENTS_OK=1
+          if [ "$AGENTS_RELEVANT_CHANGED" -eq 1 ] && [ "$AGENTS_CHANGED" -eq 0 ]; then
+            if echo "$PR_TEXT" | grep -Eiq '\[agents-skip\]'; then
+              echo "[agents-skip] found in PR title/body. Skipping AGENTS requirement."
+            else
+              echo "Governance-relevant files changed but AGENTS.md was not updated."
+              echo "Update AGENTS.md or add [agents-skip] to PR title/body with a reason."
+              AGENTS_OK=0
+            fi
+          fi
+
+          if [ "$README_OK" -eq 1 ] && [ "$AGENTS_OK" -eq 1 ]; then
+            echo "README/AGENTS guard checks passed."
+            exit 0
+          fi
+
+          exit 1
