@@ -43,6 +43,39 @@ python app.py
 
 The app will be available at `http://127.0.0.1:5000`
 
+### Run with Docker (macOS + Ubuntu/Synology)
+
+Build the image:
+
+```bash
+docker build -t pydo:latest .
+```
+
+Run the container with persistent data:
+
+```bash
+docker run -d \
+  --name pydo \
+  -p 5000:5000 \
+  -e SECRET_KEY='replace-with-a-random-long-secret' \
+  -e PYTODO_PASSWORD_HASH='paste-generated-hash-here' \
+  -v "$(pwd)/data:/app/data" \
+  --restart unless-stopped \
+  pydo:latest
+```
+
+Open: `http://127.0.0.1:5000`
+
+Synology (example host path):
+
+```bash
+-v /volume1/docker/pydo/data:/app/data
+```
+
+Notes:
+- The container runs Linux, but works the same from Docker Desktop on macOS and Docker on Ubuntu/Synology.
+- Keep `/app/data` mounted so `todo.txt` and auth lock files survive container restarts.
+
 ### Optional: Password Protection (Single User)
 
 Set one of these environment variables before starting the app:
