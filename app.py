@@ -4,8 +4,11 @@ Follows Python best practices: separation of concerns, error handling, type hint
 """
 
 import os
+import hmac
 from pathlib import Path
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from urllib.parse import urlparse
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash
+from werkzeug.security import check_password_hash
 
 from todolib import TodoList
 
@@ -17,6 +20,146 @@ TODOS_FILE = TODOS_DIR / "todo.txt"
 # Flask app setup
 app = Flask(__name__, template_folder="templates")
 app.config["ENV"] = "development"
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-in-production")
+
+AUTH_PASSWORD = os.getenv("PYTODO_PASSWORD", "")
+AUTH_PASSWORD_HASH = os.getenv("PYTODO_PASSWORD_HASH", "")
+AUTH_ENABLED = bool(AUTH_PASSWORD or AUTH_PASSWORD_HASH)
+MAX_LOGIN_ATTEMPTS = 3
+AUTH_ATTEMPTS_FILE = TODOS_DIR / ".auth_attempts"
+AUTH_BLOCK_FILE = TODOS_DIR / ".auth_blocked"
+app.config["AUTH_ENABLED"] = AUTH_ENABLED
+
+
+def _ensure_data_dir() -> None:
+    TODOS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _read_attempt_count() -> int:
+    try:
+        return int(AUTH_ATTEMPTS_FILE.read_text(encoding="utf-8").strip())
+    except Exception:
+        return 0
+
+
+def _write_attempt_count(count: int) -> None:
+    _ensure_data_dir()
+    AUTH_ATTEMPTS_FILE.write_text(str(count), encoding="utf-8")
+
+
+def _reset_attempt_count() -> None:
+    if AUTH_ATTEMPTS_FILE.exists():
+        AUTH_ATTEMPTS_FILE.unlink()
+
+
+def is_login_blocked() -> bool:
+    return AUTH_BLOCK_FILE.exists()
+
+
+def _block_login() -> None:
+    _ensure_data_dir()
+    AUTH_BLOCK_FILE.write_text("blocked", encoding="utf-8")
+
+
+def _record_failed_login() -> int:
+    count = _read_attempt_count() + 1
+    _write_attempt_count(count)
+    if count >= MAX_LOGIN_ATTEMPTS:
+        _block_login()
+    return count
+
+
+def _verify_login_password(candidate: str) -> bool:
+    if AUTH_PASSWORD_HASH:
+        normalized_hash = AUTH_PASSWORD_HASH.strip()
+        # Accept accidentally duplicated prefixes like "scrypt:scrypt:..."
+        if normalized_hash.startswith("scrypt:scrypt:"):
+            normalized_hash = normalized_hash.replace("scrypt:scrypt:", "scrypt:", 1)
+        try:
+            return check_password_hash(normalized_hash, candidate)
+        except ValueError:
+            app.logger.error("Invalid PYTODO_PASSWORD_HASH format.")
+            return False
+    if AUTH_PASSWORD:
+        return hmac.compare_digest(AUTH_PASSWORD, candidate)
+    return False
+
+
+def _is_safe_next_url(target: str) -> bool:
+    parsed = urlparse(target)
+    return parsed.scheme == "" and parsed.netloc == ""
+
+
+@app.before_request
+def require_login():
+    """Require login for all routes when password protection is enabled."""
+    if not AUTH_ENABLED:
+        return None
+
+    endpoint = request.endpoint or ""
+    allowed_endpoints = {"login", "static"}
+    if endpoint in allowed_endpoints:
+        return None
+
+    if not session.get("authenticated"):
+        return redirect(url_for("login", next=request.full_path))
+
+    return None
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Password login page."""
+    if not AUTH_ENABLED:
+        return redirect(url_for("index"))
+
+    if session.get("authenticated"):
+        return redirect(url_for("index"))
+
+    blocked = is_login_blocked()
+    if not blocked and _read_attempt_count() >= MAX_LOGIN_ATTEMPTS:
+        _reset_attempt_count()
+    if request.method == "POST":
+        next_url = (request.form.get("next") or "").strip()
+
+        if blocked:
+            flash(
+                f"Login blocked after {MAX_LOGIN_ATTEMPTS} failed attempts. "
+                f"Delete {AUTH_BLOCK_FILE} on the server to unlock.",
+                "error",
+            )
+            return render_template("login.html", blocked=True, next_url=next_url, attempts_left=0)
+
+        password = request.form.get("password", "")
+        if _verify_login_password(password):
+            session["authenticated"] = True
+            _reset_attempt_count()
+
+            if next_url and _is_safe_next_url(next_url):
+                return redirect(next_url)
+            return redirect(url_for("index"))
+
+        attempts = _record_failed_login()
+        if attempts >= MAX_LOGIN_ATTEMPTS:
+            flash(
+                f"Too many failed attempts. Login is blocked. Delete {AUTH_BLOCK_FILE} on the server to unlock.",
+                "error",
+            )
+            return render_template("login.html", blocked=True, next_url=next_url, attempts_left=0)
+
+        attempts_left = MAX_LOGIN_ATTEMPTS - attempts
+        flash(f"Invalid password. {attempts_left} attempt(s) left.", "error")
+        return render_template("login.html", blocked=False, next_url=next_url, attempts_left=attempts_left)
+
+    next_url = (request.args.get("next") or "").strip()
+    return render_template("login.html", blocked=blocked, next_url=next_url, attempts_left=MAX_LOGIN_ATTEMPTS)
+
+
+@app.route("/logout")
+def logout():
+    """Clear login session."""
+    session.clear()
+    return redirect(url_for("login"))
 
 
 def get_todos():

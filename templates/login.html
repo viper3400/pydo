@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Login - PyTodo{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Login Required</h5>
+
+                {% if blocked %}
+                    <div class="alert alert-danger mb-3">
+                        Login is blocked after 3 failed attempts.
+                        Delete <code>data/.auth_blocked</code> on the server to unlock.
+                    </div>
+                {% else %}
+                    <form method="POST" action="{{ url_for('login') }}">
+                        <input type="hidden" name="next" value="{{ next_url }}">
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input id="password" name="password" type="password" class="form-control" required autofocus>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                    </form>
+                    <small class="text-muted d-block mt-2">
+                        Maximum 3 failed attempts before lock.
+                    </small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -43,6 +43,45 @@ python app.py
 
 The app will be available at `http://127.0.0.1:5000`
 
+### Optional: Password Protection (Single User)
+
+Set one of these environment variables before starting the app:
+
+```bash
+export PYTODO_PASSWORD='your-strong-password'
+# OR (preferred)
+export PYTODO_PASSWORD_HASH='pbkdf2:sha256:...'
+```
+
+Generate a password hash on macOS:
+
+```bash
+python3 - <<'PY'
+from getpass import getpass
+from werkzeug.security import generate_password_hash
+pw = getpass("Password: ")
+print(generate_password_hash(pw))
+PY
+```
+
+Then export it:
+
+```bash
+export PYTODO_PASSWORD_HASH='paste-generated-hash-here'
+```
+
+Optional but strongly recommended:
+
+```bash
+export SECRET_KEY='replace-with-a-random-long-secret'
+```
+
+Behavior:
+- All app routes require login when password protection is enabled.
+- After 3 failed login attempts, the app creates `data/.auth_blocked`.
+- While `data/.auth_blocked` exists, login stays blocked.
+- To unlock, delete `data/.auth_blocked` on the server.
+
 ### Todo.txt Format Basics
 
 #### Incomplete Tasks
