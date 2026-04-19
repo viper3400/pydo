@@ -33,6 +33,12 @@ source myenv/bin/activate  # On Windows: myenv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+### 4. Install test dependency (optional)
+
+```bash
+pip install pytest
+```
+
 ## Usage
 
 ### Start the server
@@ -42,6 +48,20 @@ python app.py
 ```
 
 The app will be available at `http://127.0.0.1:5000`
+
+## Testing
+
+Run tests:
+
+```bash
+pytest -q
+```
+
+Quick syntax check:
+
+```bash
+python3 -m py_compile app.py todolib.py
+```
 
 ### Run with Docker (macOS + Ubuntu/Synology)
 
