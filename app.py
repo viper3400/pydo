@@ -8,6 +8,7 @@ import hmac
 from pathlib import Path
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
 
 from todolib import TodoList
@@ -21,6 +22,9 @@ TODOS_FILE = TODOS_DIR / "todo.txt"
 app = Flask(__name__, template_folder="templates")
 app.config["ENV"] = "development"
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-in-production")
+# Trust one reverse proxy hop for forwarded host/proto/prefix headers.
+# This allows running behind path prefixes like /pydo via X-Forwarded-Prefix.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 AUTH_PASSWORD = os.getenv("PYTODO_PASSWORD", "")
 AUTH_PASSWORD_HASH = os.getenv("PYTODO_PASSWORD_HASH", "")

@@ -87,6 +87,26 @@ Notes:
 - The container runs Linux, but works the same from Docker Desktop on macOS and Docker on Ubuntu/Synology.
 - Keep `/app/data` mounted so `todo.txt` and auth lock files survive container restarts.
 
+### Reverse Proxy Under A Path Prefix (Example: `/pydo/`)
+
+If you cannot use a dedicated subdomain, proxy PyTodo under a prefix and forward the prefix header:
+
+```nginx
+location = /pydo {
+  return 301 /pydo/;
+}
+
+location /pydo/ {
+  proxy_pass http://127.0.0.1:8080/;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Prefix /pydo;
+}
+```
+
+PyTodo uses forwarded prefix headers to generate correct links/redirects when mounted under `/pydo/`.
+
 ### Build And Publish Container With GitHub Actions (GHCR)
 
 This repository includes a workflow at `.github/workflows/container-publish.yml` that:

@@ -75,6 +75,7 @@ When implementing changes:
 - Keep app runnable with current lightweight setup.
 - If deployment/auth docs are updated, keep README instructions copy/paste friendly.
 - Container publishing is automated by `.github/workflows/container-publish.yml`; keep image tagging behavior (`latest`, branch, `sha-*`, semver tags) consistent unless explicitly asked to change it.
+- Keep reverse-proxy compatibility for path-prefix deployments (for example `/pydo`) by preserving forwarded-prefix behavior.
 
 ## 9. Preferred Commit Message Style
 
