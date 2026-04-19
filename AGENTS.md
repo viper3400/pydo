@@ -74,6 +74,7 @@ When implementing changes:
 - Do not introduce heavy new dependencies unless necessary.
 - Keep app runnable with current lightweight setup.
 - If deployment/auth docs are updated, keep README instructions copy/paste friendly.
+- Container publishing is automated by `.github/workflows/container-publish.yml`; keep image tagging behavior (`latest`, branch, `sha-*`, semver tags) consistent unless explicitly asked to change it.
 
 ## 9. Preferred Commit Message Style
 

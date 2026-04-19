@@ -87,6 +87,33 @@ Notes:
 - The container runs Linux, but works the same from Docker Desktop on macOS and Docker on Ubuntu/Synology.
 - Keep `/app/data` mounted so `todo.txt` and auth lock files survive container restarts.
 
+### Build And Publish Container With GitHub Actions (GHCR)
+
+This repository includes a workflow at `.github/workflows/container-publish.yml` that:
+- builds on pull requests to `main` (build only, no push)
+- builds and publishes on pushes to `main`
+- builds and publishes on version tags like `v1.2.3`
+
+Published image:
+
+```bash
+ghcr.io/<owner>/<repo>
+```
+
+Tag behavior:
+- `latest`: updated from the default branch
+- `main`: updated from `main` branch pushes
+- `sha-<commit>`: immutable commit-based tag
+- `vX.Y.Z`: full version tag when you push a matching git tag
+- `X.Y`: rolling minor tag for semver releases (for example `1.2`)
+
+Create and push a release tag:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 ### Optional: Password Protection (Single User)
 
 Set one of these environment variables before starting the app:
