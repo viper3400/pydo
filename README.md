@@ -66,6 +66,17 @@ docker run -d \
 
 Open: `http://127.0.0.1:5000`
 
+Or run with Docker Compose (uses `docker-compose.yml`):
+
+```bash
+docker compose up -d
+```
+
+Compose file highlights:
+- publishes `8080 -> 5000`
+- includes example `SECRET_KEY` and `PYTODO_PASSWORD_HASH`
+- mounts `./data` to `/app/data` for persistent tasks and auth lock files
+
 Synology (example host path):
 
 ```bash

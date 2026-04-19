@@ -1,0 +1,14 @@
+services:
+  pydo:
+    image: jaxx/pydo:latest
+    container_name: pydo
+    ports:
+      - "8080:5000"
+    environment:
+      SECRET_KEY: "replace-with-a-random-long-secret"
+      PYTODO_PASSWORD_HASH: "paste-generated-hash-here"
+      GUNICORN_WORKERS: "2"
+      PORT: "5000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
