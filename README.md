@@ -158,6 +158,22 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
+Release checklist:
+1. Move user-visible changes from `CHANGELOG.md` `Unreleased` into a new `X.Y.Z` section with date.
+2. Commit the changelog update on `main`.
+3. Create an annotated tag in semver format (`vX.Y.Z`).
+4. Push `main` and the tag.
+5. Verify published tags in GHCR (`latest`, `main`, `sha-*`, `X.Y.Z`, `X.Y`).
+
+```bash
+git checkout main
+git pull
+git add CHANGELOG.md
+git commit -m "docs: update changelog for v1.0.0"
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin main --tags
+```
+
 ### Optional: Password Protection (Single User)
 
 Set one of these environment variables before starting the app:

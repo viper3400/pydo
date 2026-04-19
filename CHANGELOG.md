@@ -1,0 +1,19 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Changelog tracking for user-visible changes and releases.
+
+## [0.1.0] - 2026-04-19
+
+### Added
+- Initial public release of PyTodo with Flask UI and todo.txt file storage.
+- Docker and Docker Compose runtime support.
+- Optional password protection with failed-login lock file behavior.
+
