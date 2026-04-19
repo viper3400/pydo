@@ -149,6 +149,7 @@ location /pydo/ {
 ```
 
 PyTodo uses forwarded prefix headers to generate correct links/redirects when mounted under `/pydo/`.
+Post-login redirects also preserve the forwarded prefix, so successful login returns to `/pydo/` instead of root.
 
 ### Build And Publish Container With GitHub Actions (GHCR)
 
@@ -222,6 +223,12 @@ Optional but strongly recommended:
 
 ```bash
 export SECRET_KEY='replace-with-a-random-long-secret'
+```
+
+Optional session cookie name (useful when multiple apps share one domain):
+
+```bash
+export PYTODO_SESSION_COOKIE_NAME='pytodo_session'
 ```
 
 Optional app version label shown in the footer:

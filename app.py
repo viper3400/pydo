@@ -22,6 +22,8 @@ TODOS_FILE = TODOS_DIR / "todo.txt"
 app = Flask(__name__, template_folder="templates")
 app.config["ENV"] = "development"
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-in-production")
+app.config["SESSION_COOKIE_NAME"] = (os.getenv("PYTODO_SESSION_COOKIE_NAME", "pytodo_session").strip()
+                                     or "pytodo_session")
 # Trust one reverse proxy hop for forwarded host/proto/prefix headers.
 # This allows running behind path prefixes like /pydo via X-Forwarded-Prefix.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -122,6 +124,17 @@ def _is_safe_next_url(target: str) -> bool:
     return parsed.scheme == "" and parsed.netloc == ""
 
 
+def _build_safe_next_url() -> str:
+    """Build a relative post-login target that preserves reverse-proxy prefix."""
+    full_path = request.full_path
+    if full_path.endswith("?"):
+        full_path = full_path[:-1]
+
+    script_root = request.script_root or ""
+    next_url = f"{script_root}{full_path}" if script_root else full_path
+    return next_url or "/"
+
+
 @app.before_request
 def require_login():
     """Require login for all routes when password protection is enabled."""
@@ -134,7 +147,7 @@ def require_login():
         return None
 
     if not session.get("authenticated"):
-        return redirect(url_for("login", next=request.full_path))
+        return redirect(url_for("login", next=_build_safe_next_url()))
 
     return None
 
