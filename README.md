@@ -33,6 +33,12 @@ source myenv/bin/activate  # On Windows: myenv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+### 4. Install test dependency (optional)
+
+```bash
+pip install pytest
+```
+
 ## Usage
 
 ### Start the server
@@ -42,6 +48,20 @@ python app.py
 ```
 
 The app will be available at `http://127.0.0.1:5000`
+
+## Testing
+
+Run tests:
+
+```bash
+pytest -q
+```
+
+Quick syntax check:
+
+```bash
+python3 -m py_compile app.py todolib.py
+```
 
 ### Run with Docker (macOS + Ubuntu/Synology)
 
@@ -133,9 +153,8 @@ PyTodo uses forwarded prefix headers to generate correct links/redirects when mo
 ### Build And Publish Container With GitHub Actions (GHCR)
 
 This repository includes a workflow at `.github/workflows/container-publish.yml` that:
-- builds on pull requests to `main` (build only, no push)
-- builds and publishes on pushes to `main`
-- builds and publishes on version tags like `v1.2.3`
+- builds and publishes only on version tags like `v1.2.3`
+- can also be run manually via GitHub Actions `workflow_dispatch`
 - passes the resolved version to the image as `PYTODO_VERSION`, so the app footer reflects the image version
 
 Published image:
@@ -145,8 +164,6 @@ ghcr.io/<owner>/<repo>
 ```
 
 Tag behavior:
-- `latest`: updated from the default branch
-- `main`: updated from `main` branch pushes
 - `sha-<commit>`: immutable commit-based tag
 - `vX.Y.Z`: full version tag when you push a matching git tag
 - `X.Y`: rolling minor tag for semver releases (for example `1.2`)
@@ -163,7 +180,7 @@ Release checklist:
 2. Commit the changelog update on `main`.
 3. Create an annotated tag in semver format (`vX.Y.Z`).
 4. Push `main` and the tag.
-5. Verify published tags in GHCR (`latest`, `main`, `sha-*`, `X.Y.Z`, `X.Y`).
+5. Verify published tags in GHCR (`sha-*`, `X.Y.Z`, `X.Y`).
 
 ```bash
 git checkout main

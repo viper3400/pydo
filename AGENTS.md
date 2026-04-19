@@ -65,8 +65,10 @@ When implementing changes:
 
 ## 7. Testing Expectations
 
-- There is no formal test suite yet.
+- Use `pytest` for automated checks. Baseline tests live in `tests/`.
 - For logic changes, perform at least lightweight runtime/syntax checks.
+  - `pytest -q`
+  - `python3 -m py_compile app.py todolib.py`
 - For UI changes, mention what should be manually verified in browser.
 
 ## 8. Dependency and Deployment Guardrails
@@ -74,7 +76,7 @@ When implementing changes:
 - Do not introduce heavy new dependencies unless necessary.
 - Keep app runnable with current lightweight setup.
 - If deployment/auth docs are updated, keep README instructions copy/paste friendly.
-- Container publishing is automated by `.github/workflows/container-publish.yml`; keep image tagging behavior (`latest`, branch, `sha-*`, semver tags) consistent unless explicitly asked to change it.
+- Container publishing is automated by `.github/workflows/container-publish.yml`; it publishes on semver tags (`v*.*.*`) and manual dispatch, and produces `sha-*` plus semver tags.
 - Keep reverse-proxy compatibility for path-prefix deployments (for example `/pydo`) by preserving forwarded-prefix behavior.
 
 ## 9. Preferred Commit Message Style
@@ -95,3 +97,8 @@ When implementing changes:
   - user-visible features or workflows.
 - If README changes are intentionally skipped, include `[docs-skip]` in PR title or PR body with a short reason.
 - When unsure, update `README.md`.
+
+## 11. Workflow Governance Sync Policy
+
+- If `.github/workflows/*` changes, update `AGENTS.md` in the same change.
+- If an `AGENTS.md` update is intentionally skipped, include `[agents-skip]` in PR title or PR body with a short reason.
