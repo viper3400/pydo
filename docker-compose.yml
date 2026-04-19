@@ -2,6 +2,7 @@ services:
   pydo:
     image: jaxx/pydo:latest
     container_name: pydo
+    user: "${PYDO_UID:-0}:${PYDO_GID:-0}"
     ports:
       - "8080:5000"
     environment:

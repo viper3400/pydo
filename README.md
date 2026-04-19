@@ -76,6 +76,7 @@ Compose file highlights:
 - publishes `8080 -> 5000`
 - includes example `SECRET_KEY` and `PYTODO_PASSWORD_HASH`
 - mounts `./data` to `/app/data` for persistent tasks and auth lock files
+- runs as a configurable UID/GID via `PYDO_UID`/`PYDO_GID` (defaults to `0:0` for bind-mount write compatibility)
 
 Synology (example host path):
 
@@ -86,6 +87,26 @@ Synology (example host path):
 Notes:
 - The container runs Linux, but works the same from Docker Desktop on macOS and Docker on Ubuntu/Synology.
 - Keep `/app/data` mounted so `todo.txt` and auth lock files survive container restarts.
+- If your host files are owned by another user/group, set `PYDO_UID` and `PYDO_GID` in your shell or compose `.env` before `docker compose up -d`.
+
+### Docker Volume Permission Troubleshooting
+
+If you see `PermissionError: [Errno 13]` for `/app/data/todo.txt`, the bind-mounted file is not writable by the container user.
+
+Check ownership and mode on host:
+
+```bash
+ls -l ./data/todo.txt
+```
+
+With this repository's `docker-compose.yml`, container user defaults to `0:0` (root) for compatibility.  
+If you prefer non-root runtime, set matching host UID/GID:
+
+```bash
+export PYDO_UID="$(id -u)"
+export PYDO_GID="$(id -g)"
+docker compose up -d
+```
 
 ### Reverse Proxy Under A Path Prefix (Example: `/pydo/`)
 
