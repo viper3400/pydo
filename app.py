@@ -122,6 +122,17 @@ def _is_safe_next_url(target: str) -> bool:
     return parsed.scheme == "" and parsed.netloc == ""
 
 
+def _build_safe_next_url() -> str:
+    """Build a relative post-login target that preserves reverse-proxy prefix."""
+    full_path = request.full_path
+    if full_path.endswith("?"):
+        full_path = full_path[:-1]
+
+    script_root = request.script_root or ""
+    next_url = f"{script_root}{full_path}" if script_root else full_path
+    return next_url or "/"
+
+
 @app.before_request
 def require_login():
     """Require login for all routes when password protection is enabled."""
@@ -134,7 +145,7 @@ def require_login():
         return None
 
     if not session.get("authenticated"):
-        return redirect(url_for("login", next=request.full_path))
+        return redirect(url_for("login", next=_build_safe_next_url()))
 
     return None
 

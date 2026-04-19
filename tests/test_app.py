@@ -18,3 +18,21 @@ def test_login_gate_redirects_when_enabled(client, monkeypatch):
 
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
+
+
+def test_login_redirect_preserves_forwarded_prefix(client, monkeypatch):
+    monkeypatch.setattr(app_module, "AUTH_ENABLED", True)
+    monkeypatch.setattr(app_module, "_verify_login_password", lambda _: True)
+
+    response = client.get("/", headers={"X-Forwarded-Prefix": "/pydo"})
+    assert response.status_code == 302
+    assert "/pydo/login" in response.headers["Location"]
+    assert "next=/pydo/" in response.headers["Location"]
+
+    login_response = client.post(
+        "/login",
+        data={"password": "ok", "next": "/pydo/"},
+        headers={"X-Forwarded-Prefix": "/pydo"},
+    )
+    assert login_response.status_code == 302
+    assert login_response.headers["Location"].endswith("/pydo/")

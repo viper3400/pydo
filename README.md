@@ -149,6 +149,7 @@ location /pydo/ {
 ```
 
 PyTodo uses forwarded prefix headers to generate correct links/redirects when mounted under `/pydo/`.
+Post-login redirects also preserve the forwarded prefix, so successful login returns to `/pydo/` instead of root.
 
 ### Build And Publish Container With GitHub Actions (GHCR)
 
