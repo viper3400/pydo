@@ -225,6 +225,12 @@ Optional but strongly recommended:
 export SECRET_KEY='replace-with-a-random-long-secret'
 ```
 
+Optional session cookie name (useful when multiple apps share one domain):
+
+```bash
+export PYTODO_SESSION_COOKIE_NAME='pytodo_session'
+```
+
 Optional app version label shown in the footer:
 
 ```bash

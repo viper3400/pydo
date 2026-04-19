@@ -22,6 +22,8 @@ TODOS_FILE = TODOS_DIR / "todo.txt"
 app = Flask(__name__, template_folder="templates")
 app.config["ENV"] = "development"
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-in-production")
+app.config["SESSION_COOKIE_NAME"] = (os.getenv("PYTODO_SESSION_COOKIE_NAME", "pytodo_session").strip()
+                                     or "pytodo_session")
 # Trust one reverse proxy hop for forwarded host/proto/prefix headers.
 # This allows running behind path prefixes like /pydo via X-Forwarded-Prefix.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)

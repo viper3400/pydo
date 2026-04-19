@@ -26,6 +26,7 @@ Keep changes minimal, targeted, and reversible.
 - Password protection is env-driven:
   - `PYTODO_PASSWORD` or `PYTODO_PASSWORD_HASH`
   - `SECRET_KEY`
+  - `PYTODO_SESSION_COOKIE_NAME` (defaults to `pytodo_session`)
 - If auth behavior is changed, preserve:
   - global login gate (`before_request` style),
   - brute-force lock file flow (`data/.auth_blocked`),
