@@ -102,3 +102,4 @@ When implementing changes:
 
 - If `.github/workflows/*` changes, update `AGENTS.md` in the same change.
 - If an `AGENTS.md` update is intentionally skipped, include `[agents-skip]` in PR title or PR body with a short reason.
+- PRs opened by `dependabot[bot]` are exempt from README/AGENTS guard requirements in `.github/workflows/readme-guard.yml`.
