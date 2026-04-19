@@ -109,13 +109,17 @@ class Todo:
         """Get simplified text for display (stripped of metadata)."""
         text = self.get_edit_text()
 
-        # Hide todo.txt-style metadata in display mode.
-        text = re.sub(r"(^|\s)\+\S+", " ", text)  # projects
-        text = re.sub(r"(^|\s)@\S+", " ", text)  # contexts
-        text = re.sub(r"(^|\s)\w+:\S*", " ", text)  # custom fields like due:, waiting:
-        text = re.sub(r"(^|\s)\d{4}-\d{2}-\d{2}(?=\s|$)", " ", text)  # date tokens
-        text = re.sub(r"\s+", " ", text)
-        return text.strip()
+        # Hide todo.txt-style metadata in display mode using exact token matches
+        # from parsed metadata, so plain words in the task text are not removed.
+        metadata_tokens = {f"+{project}" for project in self.projects}
+        metadata_tokens.update(f"@{context}" for context in self.contexts)
+        metadata_tokens.update(
+            f"{key}:{value}" if value else f"{key}:"
+            for key, value in self.custom_fields.items()
+        )
+
+        filtered_tokens = [token for token in text.split() if token not in metadata_tokens]
+        return " ".join(filtered_tokens)
 
     def get_edit_text(self) -> str:
         """Get editable task text (stripped of core metadata, keeps task markers)."""
