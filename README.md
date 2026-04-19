@@ -59,6 +59,7 @@ docker run -d \
   -p 5000:5000 \
   -e SECRET_KEY='replace-with-a-random-long-secret' \
   -e PYTODO_PASSWORD_HASH='paste-generated-hash-here' \
+  -e PYTODO_VERSION='1.0.0' \
   -v "$(pwd)/data:/app/data" \
   --restart unless-stopped \
   pydo:latest
@@ -75,6 +76,7 @@ docker compose up -d
 Compose file highlights:
 - publishes `8080 -> 5000`
 - includes example `SECRET_KEY` and `PYTODO_PASSWORD_HASH`
+- supports optional `PYTODO_VERSION` shown in the app footer
 - mounts `./data` to `/app/data` for persistent tasks and auth lock files
 - runs as a configurable UID/GID via `PYDO_UID`/`PYDO_GID` (defaults to `0:0` for bind-mount write compatibility)
 
@@ -134,6 +136,7 @@ This repository includes a workflow at `.github/workflows/container-publish.yml`
 - builds on pull requests to `main` (build only, no push)
 - builds and publishes on pushes to `main`
 - builds and publishes on version tags like `v1.2.3`
+- passes the resolved version to the image as `PYTODO_VERSION`, so the app footer reflects the image version
 
 Published image:
 
@@ -187,6 +190,14 @@ Optional but strongly recommended:
 ```bash
 export SECRET_KEY='replace-with-a-random-long-secret'
 ```
+
+Optional app version label shown in the footer:
+
+```bash
+export PYTODO_VERSION='1.0.0'
+```
+
+If `PYTODO_VERSION` is unset, the app falls back to a local `VERSION` file, then `dev`.
 
 Behavior:
 - All app routes require login when password protection is enabled.

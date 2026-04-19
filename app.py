@@ -35,6 +35,34 @@ AUTH_BLOCK_FILE = TODOS_DIR / ".auth_blocked"
 app.config["AUTH_ENABLED"] = AUTH_ENABLED
 
 
+def _get_app_version() -> str:
+    """Resolve app version for UI display."""
+    version = os.getenv("PYTODO_VERSION", "").strip()
+    if version:
+        return version
+
+    version_file = BASE_DIR / "VERSION"
+    if version_file.exists():
+        try:
+            file_version = version_file.read_text(encoding="utf-8").strip()
+            if file_version:
+                return file_version
+        except Exception:
+            return "-dev"
+
+    return "-dev"
+
+
+APP_VERSION = _get_app_version()
+app.config["APP_VERSION"] = APP_VERSION
+
+
+@app.context_processor
+def inject_app_version():
+    """Inject app version into all templates."""
+    return {"app_version": APP_VERSION}
+
+
 def _ensure_data_dir() -> None:
     TODOS_DIR.mkdir(parents=True, exist_ok=True)
 
