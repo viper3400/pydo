@@ -9,7 +9,7 @@ A lightweight, Python-based web application for managing tasks using the [todo.t
 - 🏷️ **Organize Tasks**: Support for priorities (A-Z), projects (+ProjectName), and contexts (@context)
 - 📊 **Smart Filtering**: View tasks by status, project, or context
 - ✏️ **Inline Editing Workflow**: Only one inline edit can be active at a time; if unsaved changes exist, a modal shows marked text and priority changes before switching
-- 🧭 **Richer Due Sidebars**: Overdue / Due Today / Due This Week panels include task tags and due metadata like the main list, with task text wrapped up to three lines
+- 🧭 **Focused Due Sections**: Overdue / Due Today / Due This Week are emphasized directly in the main list with section styling (without duplicate sidebar panels)
 - ⏳ **Waiting Workflow**: Track blocked tasks with `@waiting` and `waiting:<person>`
 - ⚡ **Lightweight**: No database required—uses plain text files
 - 🎨 **Modern Design**: Responsive design that works on desktop and mobile

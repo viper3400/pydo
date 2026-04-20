@@ -53,7 +53,7 @@ body {
 }
 
 .task-group-divider {
-    margin: 0.8rem 0 0.5rem;
+    margin: 1.2rem 0 0.8rem;
     border-bottom: 1px solid #ced4da;
     line-height: 0.1em;
 }
@@ -61,9 +61,74 @@ body {
 .task-group-divider span {
     background: var(--light-bg);
     color: #6c757d;
-    font-size: 0.78rem;
+    font-size: 0.92rem;
     font-weight: 600;
     padding-right: 0.5rem;
+}
+
+.task-group-overdue {
+    border-bottom-color: #dc3545;
+}
+
+.task-group-overdue span {
+    color: #dc3545;
+}
+
+.task-group-due_today {
+    border-bottom-color: #0d6efd;
+}
+
+.task-group-due_today span {
+    color: #0d6efd;
+}
+
+.task-group-due_soon {
+    border-bottom-color: #ffc107;
+}
+
+.task-group-due_soon span {
+    color: #9a6700;
+}
+
+.framed-section-card {
+    border-left-width: 3px;
+    border-right-width: 1px;
+}
+
+.framed-section-card.section-overdue {
+    border-left-color: #dc3545;
+    border-right-color: #f2b8bf;
+    background-color: #fff5f6;
+}
+
+.framed-section-card.section-due_today {
+    border-left-color: #0d6efd;
+    border-right-color: #b9d3ff;
+    background-color: #f4f8ff;
+}
+
+.framed-section-card.section-due_soon {
+    border-left-color: #ffc107;
+    border-right-color: #ffe69c;
+    background-color: #fffdf2;
+}
+
+.framed-section-card.section-priority {
+    border-left-color: #6f42c1;
+    border-right-color: #d6c8f5;
+    background-color: #f8f5ff;
+}
+
+.framed-section-card.section-due_later {
+    border-left-color: #20c997;
+    border-right-color: #b8efe0;
+    background-color: #f4fffb;
+}
+
+.framed-section-card.section-other {
+    border-left-color: #6c757d;
+    border-right-color: #d6d9dc;
+    background-color: #fafbfc;
 }
 
 /* Priority Badges */
@@ -235,21 +300,6 @@ button {
 .edit-form .btn {
     font-size: 0.85rem;
     padding: 0.3rem 0.6rem;
-}
-
-/* Sidebar task snippets */
-.sidebar-task-text {
-    font-size: 0.85rem;
-    line-height: 1.3;
-    word-break: break-word;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    overflow: hidden;
-}
-
-.sidebar-task-text-overdue {
-    font-size: 0.9rem;
 }
 
 /* Footer */
