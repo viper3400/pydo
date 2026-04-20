@@ -237,6 +237,21 @@ button {
     padding: 0.3rem 0.6rem;
 }
 
+/* Sidebar task snippets */
+.sidebar-task-text {
+    font-size: 0.85rem;
+    line-height: 1.3;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+}
+
+.sidebar-task-text-overdue {
+    font-size: 0.9rem;
+}
+
 /* Footer */
 footer {
     margin-top: auto;
