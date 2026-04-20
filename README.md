@@ -8,6 +8,7 @@ A lightweight, Python-based web application for managing tasks using the [todo.t
 - 📝 **Simple Web Interface**: Clean, responsive UI built with Bootstrap 5
 - 🏷️ **Organize Tasks**: Support for priorities (A-Z), projects (+ProjectName), and contexts (@context)
 - 📊 **Smart Filtering**: View tasks by status, project, or context
+- ✏️ **Inline Editing Workflow**: Only one inline edit can be active at a time; if unsaved changes exist, a modal shows marked text and priority changes before switching
 - ⏳ **Waiting Workflow**: Track blocked tasks with `@waiting` and `waiting:<person>`
 - ⚡ **Lightweight**: No database required—uses plain text files
 - 🎨 **Modern Design**: Responsive design that works on desktop and mobile
