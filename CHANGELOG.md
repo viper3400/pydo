@@ -7,7 +7,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-04-19
+## [0.2.1] - 2026-04-19
 
 ### Added
 - Baseline automated test suite with `pytest` for core todo logic and Flask routes.
