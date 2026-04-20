@@ -38,41 +38,62 @@
                     Completed <span class="badge bg-success">{{ total_completed }}</span>
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link {% if filter_by == 'all' %}active{% endif %}" href="{{ url_for('index', filter='all') }}">
-                    All
-                </a>
-            </li>
         </ul>
 
         <!-- Todo List -->
         <div class="todo-list">
             {% if todos %}
+                {% set counts = namespace(overdue=0, due_today=0, due_soon=0, priority=0, due_later=0, other=0) %}
+                {% if filter_by == 'active' %}
+                    {% for todo in todos %}
+                        {% set due = todo.custom_fields.get('due') %}
+                        {% if due and due < today %}
+                            {% set counts.overdue = counts.overdue + 1 %}
+                        {% elif due == today %}
+                            {% set counts.due_today = counts.due_today + 1 %}
+                        {% elif todo in due_soon %}
+                            {% set counts.due_soon = counts.due_soon + 1 %}
+                        {% elif todo.priority %}
+                            {% set counts.priority = counts.priority + 1 %}
+                        {% elif due %}
+                            {% set counts.due_later = counts.due_later + 1 %}
+                        {% else %}
+                            {% set counts.other = counts.other + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
                 {% set ns = namespace(prev_group='') %}
                 {% for todo in todos %}
                     {% set due = todo.custom_fields.get('due') %}
-                    {% if due and due <= today %}
-                        {% set group_key = 'due_now' %}
-                        {% set group_label = 'Due: Overdue & Today' %}
+                    {% if due and due < today %}
+                        {% set group_key = 'overdue' %}
+                        {% set group_label = '⚠️ Overdue (' ~ counts.overdue ~ ')' %}
+                    {% elif due == today %}
+                        {% set group_key = 'due_today' %}
+                        {% set group_label = '📍 Due Today (' ~ counts.due_today ~ ')' %}
+                    {% elif todo in due_soon %}
+                        {% set group_key = 'due_soon' %}
+                        {% set group_label = '📅 Due This Week (' ~ counts.due_soon ~ ')' %}
                     {% elif todo.priority %}
                         {% set group_key = 'priority' %}
-                        {% set group_label = 'Prioritized Tasks' %}
+                        {% set group_label = '⚡ Prioritized Tasks (' ~ counts.priority ~ ')' %}
                     {% elif due %}
                         {% set group_key = 'due_later' %}
-                        {% set group_label = 'Other Due Dates' %}
+                        {% set group_label = '🗓️ Other Due Dates (' ~ counts.due_later ~ ')' %}
                     {% else %}
                         {% set group_key = 'other' %}
-                        {% set group_label = 'Other Tasks' %}
+                        {% set group_label = 'Other Tasks (' ~ counts.other ~ ')' %}
                     {% endif %}
 
                     {% if filter_by == 'active' and group_key != ns.prev_group %}
-                        <div class="task-group-divider">
+                        <div class="task-group-divider task-group-{{ group_key }}">
                             <span>{{ group_label }}</span>
                         </div>
                         {% set ns.prev_group = group_key %}
                     {% endif %}
 
-                    <div class="card mb-2 todo-item {% if todo.complete %}completed{% endif %}" data-index="{{ loop.index0 }}">
+                    <div class="card mb-2 todo-item {% if todo.complete %}completed{% endif %} {% if filter_by == 'active' %}framed-section-card section-{{ group_key }}{% endif %}" data-index="{{ loop.index0 }}">
                         <div class="card-body py-2 px-3 d-flex align-items-center gap-2">
                             <!-- Checkbox -->
                             <form method="POST" action="{{ url_for('toggle_todo', index=loop.index0) }}" class="toggle-form m-0" style="flex-shrink: 0;">
@@ -166,61 +187,6 @@
 
     <!-- Sidebar -->
     <div class="col-lg-4">
-        <!-- Overdue -->
-        {% if overdue %}
-            <div class="card mb-3 shadow-sm border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h6 class="mb-0">⚠️ Overdue ({{ overdue | length }})</h6>
-                </div>
-                <div class="list-group list-group-flush">
-                    {% for todo in overdue %}
-                        <div class="list-group-item">
-                            <small class="text-danger font-weight-bold">{{ todo.custom_fields.get('due') | format_date }}</small>
-                            <div class="mt-1" style="font-size: 0.9rem;">{{ todo.get_display_text()[:60] }}{% if todo.get_display_text() | length > 60 %}...{% endif %}</div>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-        {% endif %}
-
-        <!-- Due Today -->
-        {% if due_today %}
-            <div class="card mb-3 shadow-sm border-primary">
-                <div class="card-header bg-primary text-white">
-                    <h6 class="mb-0">📍 Due Today ({{ due_today | length }})</h6>
-                </div>
-                <div class="list-group list-group-flush">
-                    {% for todo in due_today %}
-                        <a href="{{ url_for('filter_due', date=todo.custom_fields.get('due')) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start">
-                            <div>
-                                <small class="fw-bold">{{ todo.custom_fields.get('due') | format_date }}</small>
-                                <div style="font-size: 0.85rem;">{{ todo.get_display_text()[:40] }}{% if todo.get_display_text() | length > 40 %}...{% endif %}</div>
-                            </div>
-                        </a>
-                    {% endfor %}
-                </div>
-            </div>
-        {% endif %}
-
-        <!-- Due Soon -->
-        {% if due_soon %}
-            <div class="card mb-3 shadow-sm border-warning">
-                <div class="card-header bg-warning text-dark">
-                    <h6 class="mb-0">📅 Due This Week ({{ due_soon | length }})</h6>
-                </div>
-                <div class="list-group list-group-flush">
-                    {% for todo in due_soon %}
-                        <a href="{{ url_for('filter_due', date=todo.custom_fields.get('due')) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start">
-                            <div>
-                                <small class="fw-bold">{{ todo.custom_fields.get('due') | format_date }}</small>
-                                <div style="font-size: 0.85rem;">{{ todo.get_display_text()[:40] }}{% if todo.get_display_text() | length > 40 %}...{% endif %}</div>
-                            </div>
-                        </a>
-                    {% endfor %}
-                </div>
-            </div>
-        {% endif %}
-
         <!-- Waiting For -->
         {% if waiting_tasks %}
             <div class="card mb-3 shadow-sm border-info">
