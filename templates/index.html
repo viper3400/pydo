@@ -198,7 +198,7 @@
                             </div>
 
                             <!-- Delete Button -->
-                            <form method="POST" action="{{ url_for('delete_todo', index=loop.index0) }}" class="delete-form m-0" style="flex-shrink: 0;">
+                            <form method="POST" action="{{ url_for('delete_todo', index=loop.index0) }}" class="delete-form m-0" style="flex-shrink: 0;" data-task-text="{{ todo.get_display_text() }}">
                                 <input type="hidden" name="line" value="{{ todo.to_line() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">×</button>
                             </form>

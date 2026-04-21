@@ -7,6 +7,8 @@ const PENDING_EDIT_INDEX_KEY = 'pytodo_pending_edit_index';
 let switchModal = null;
 let switchSourceTodoItem = null;
 let switchTargetTodoItem = null;
+let deleteModal = null;
+let deleteFormToSubmit = null;
 
 function getEditForm(todoItem) {
     return todoItem?.querySelector('.edit-form') || null;
@@ -222,6 +224,22 @@ function showSwitchModal(currentTodoItem, nextTodoItem) {
     switchModal.show();
 }
 
+function showDeleteModal(form) {
+    if (!deleteModal) {
+        return false;
+    }
+
+    const taskText = form?.dataset?.taskText?.trim() || 'this task';
+    const taskTextElement = document.getElementById('deleteConfirmTaskText');
+    if (taskTextElement) {
+        taskTextElement.textContent = taskText;
+    }
+
+    deleteFormToSubmit = form;
+    deleteModal.show();
+    return true;
+}
+
 // Edit task functionality
 function editTask(element, event) {
     event.stopPropagation();
@@ -313,8 +331,13 @@ function bindDynamicHandlers() {
     const deleteForms = document.querySelectorAll('.delete-form');
     deleteForms.forEach(form => {
         form.addEventListener('submit', function(e) {
+            if (showDeleteModal(this)) {
+                e.preventDefault();
+                return false;
+            }
             if (!confirm('Are you sure you want to delete this task?')) {
                 e.preventDefault();
+                return false;
             }
         });
     });
@@ -406,6 +429,27 @@ document.addEventListener('DOMContentLoaded', function() {
             showEditMode(switchTargetTodoItem, true);
             setPendingEditIndex('');
             switchModal?.hide();
+        });
+    }
+
+    const deleteModalEl = document.getElementById('deleteConfirmModal');
+    if (deleteModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        deleteModal = new bootstrap.Modal(deleteModalEl);
+        deleteModalEl.addEventListener('hidden.bs.modal', function() {
+            deleteFormToSubmit = null;
+        });
+    }
+
+    const deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
+    if (deleteConfirmBtn) {
+        deleteConfirmBtn.addEventListener('click', function() {
+            if (!deleteFormToSubmit) {
+                return;
+            }
+            const form = deleteFormToSubmit;
+            deleteFormToSubmit = null;
+            deleteModal?.hide();
+            form.submit();
         });
     }
 
