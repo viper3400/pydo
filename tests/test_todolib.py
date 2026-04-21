@@ -24,6 +24,16 @@ def test_todolist_add_toggle_remove(tmp_path):
     assert todos.todos[0].complete is True
     assert todos.todos[0].completion_date is not None
 
+    todos.toggle(0)
+    assert todos.todos[0].complete is False
+    assert todos.todos[0].completion_date is None
+    assert not todos.todos[0].to_line().startswith("x ")
+
+    # Reload from disk to ensure reopened task persists as active.
+    reloaded = TodoList(todo_file)
+    assert len(reloaded.get_active()) == 1
+    assert len(reloaded.get_completed()) == 0
+
     todos.remove(0)
     assert len(todos.todos) == 0
 

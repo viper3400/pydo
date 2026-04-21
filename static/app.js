@@ -7,6 +7,8 @@ const PENDING_EDIT_INDEX_KEY = 'pytodo_pending_edit_index';
 let switchModal = null;
 let switchSourceTodoItem = null;
 let switchTargetTodoItem = null;
+let deleteModal = null;
+let deleteFormToSubmit = null;
 
 function getEditForm(todoItem) {
     return todoItem?.querySelector('.edit-form') || null;
@@ -222,6 +224,22 @@ function showSwitchModal(currentTodoItem, nextTodoItem) {
     switchModal.show();
 }
 
+function showDeleteModal(form) {
+    if (!deleteModal) {
+        return false;
+    }
+
+    const taskText = form?.dataset?.taskText?.trim() || 'this task';
+    const taskTextElement = document.getElementById('deleteConfirmTaskText');
+    if (taskTextElement) {
+        taskTextElement.textContent = taskText;
+    }
+
+    deleteFormToSubmit = form;
+    deleteModal.show();
+    return true;
+}
+
 // Edit task functionality
 function editTask(element, event) {
     event.stopPropagation();
@@ -257,6 +275,118 @@ function cancelEdit(button) {
     resetEditFormToOriginal(todoItem);
     hideEditMode(todoItem);
     setPendingEditIndex('');
+}
+
+function restorePendingEditMode() {
+    const pendingIndex = getPendingEditIndex();
+    if (!pendingIndex) {
+        return;
+    }
+    const todoItem = document.querySelector(`.todo-item[data-index="${pendingIndex}"]`);
+    if (todoItem && !todoItem.classList.contains('completed')) {
+        showEditMode(todoItem, true);
+    }
+    setPendingEditIndex('');
+}
+
+async function refreshContentPreserveScroll() {
+    const scrollY = window.scrollY || 0;
+    const response = await fetch(window.location.href, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    if (!response.ok) {
+        throw new Error('Failed to refresh task list');
+    }
+
+    const html = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const currentContainer = document.querySelector('main .container-lg');
+    const nextContainer = doc.querySelector('main .container-lg');
+
+    if (!currentContainer || !nextContainer) {
+        throw new Error('Failed to locate content container');
+    }
+
+    currentContainer.innerHTML = nextContainer.innerHTML;
+    bindDynamicHandlers();
+    restorePendingEditMode();
+    window.scrollTo({ top: scrollY, behavior: 'auto' });
+}
+
+function bindDynamicHandlers() {
+    // Add form submission handler
+    const addForm = document.querySelector('form[action*="/add"]');
+    if (addForm) {
+        addForm.addEventListener('submit', function(e) {
+            const textInput = this.querySelector('input[name="text"]');
+            if (!textInput.value.trim()) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+
+    // Delete confirmation
+    const deleteForms = document.querySelectorAll('.delete-form');
+    deleteForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            if (showDeleteModal(this)) {
+                e.preventDefault();
+                return false;
+            }
+            if (!confirm('Are you sure you want to delete this task?')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    });
+
+    // Animate checkbox changes
+    const checkboxes = document.querySelectorAll('.todo-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const item = this.closest('.todo-item');
+            if (item) {
+                item.style.opacity = '0.5';
+            }
+        });
+    });
+
+    // Edit form submission (AJAX to avoid full-page reload/flicker)
+    const editForms = document.querySelectorAll('.edit-form');
+    editForms.forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            const input = this.querySelector('.edit-input');
+            if (!input.value.trim()) {
+                e.preventDefault();
+                alert('Task text cannot be empty');
+                return false;
+            }
+
+            e.preventDefault();
+            const body = new URLSearchParams(new FormData(this));
+
+            try {
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body
+                });
+                const data = await response.json().catch(() => ({ success: false }));
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to save task');
+                }
+
+                await refreshContentPreserveScroll();
+            } catch (error) {
+                alert(error.message || 'Failed to save task');
+            }
+        });
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -302,37 +432,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // If user chose "Save" while switching rows, reopen target row after reload.
-    const pendingIndex = getPendingEditIndex();
-    if (pendingIndex) {
-        const todoItem = document.querySelector(`.todo-item[data-index="${pendingIndex}"]`);
-        if (todoItem && !todoItem.classList.contains('completed')) {
-            showEditMode(todoItem, true);
-        }
-        setPendingEditIndex('');
-    }
-
-    // Add form submission handler
-    const addForm = document.querySelector('form[action*="/add"]');
-    if (addForm) {
-        addForm.addEventListener('submit', function(e) {
-            const textInput = this.querySelector('input[name="text"]');
-            if (!textInput.value.trim()) {
-                e.preventDefault();
-                return false;
-            }
+    const deleteModalEl = document.getElementById('deleteConfirmModal');
+    if (deleteModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        deleteModal = new bootstrap.Modal(deleteModalEl);
+        deleteModalEl.addEventListener('hidden.bs.modal', function() {
+            deleteFormToSubmit = null;
         });
     }
 
-    // Delete confirmation
-    const deleteForms = document.querySelectorAll('.delete-form');
-    deleteForms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            if (!confirm('Are you sure you want to delete this task?')) {
-                e.preventDefault();
+    const deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
+    if (deleteConfirmBtn) {
+        deleteConfirmBtn.addEventListener('click', function() {
+            if (!deleteFormToSubmit) {
+                return;
             }
+            const form = deleteFormToSubmit;
+            deleteFormToSubmit = null;
+            deleteModal?.hide();
+            form.submit();
         });
-    });
+    }
+
+    restorePendingEditMode();
+    bindDynamicHandlers();
 
     // Keyboard shortcuts
     document.addEventListener('keydown', function(e) {
@@ -355,29 +477,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Animate checkbox changes
-    const checkboxes = document.querySelectorAll('.todo-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const item = this.closest('.todo-item');
-            if (item) {
-                item.style.opacity = '0.5';
-            }
-        });
-    });
-
-    // Edit form submission
-    const editForms = document.querySelectorAll('.edit-form');
-    editForms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const input = this.querySelector('.edit-input');
-            if (!input.value.trim()) {
-                e.preventDefault();
-                alert('Task text cannot be empty');
-                return false;
-            }
-        });
-    });
 });
 
 // Helper function for AJAX requests (future use)

@@ -388,11 +388,22 @@ def edit_todo(index):
         return jsonify({"success": False, "error": "Text cannot be empty"}), 400
 
     todos = get_todos()
+    updated = False
     if old_line:
-        todos.update_by_line(old_line, new_text, priority=new_priority, update_priority=True)
+        updated = todos.update_by_line(old_line, new_text, priority=new_priority, update_priority=True)
+    elif 0 <= index < len(todos.todos):
+        todos.todos[index].text = new_text
+        todos.todos[index].priority = new_priority
+        todos.save()
+        updated = True
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        if not updated:
+            return jsonify({"success": False, "error": "Task not found"}), 404
         return jsonify({"success": True})
+
+    if not updated:
+        return redirect(request.referrer or url_for("index"))
 
     return redirect(request.referrer or url_for("index"))
 

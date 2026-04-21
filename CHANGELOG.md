@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.6.0] - 2026-04-21
+
+### Added
+- In-app delete confirmation modal with task preview (replacing plain browser confirm dialogs).
+- Regression coverage for inline edit AJAX responses and completed->active reopen persistence.
+
+### Changed
+- Inline edit save now uses AJAX + in-place content refresh to avoid full-page reload jump/flicker.
+- Delete action UI refreshed with a dedicated trash icon button and softer hover/focus styling.
+- Agent and README documentation tightened and synced with current workflow behavior.
+
+### Fixed
+- Reopening completed tasks now reliably removes completion prefix metadata so tasks return to the active list after reload.
+
 ## [0.5.1] - 2026-04-21
 
 ### Changed

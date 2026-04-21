@@ -115,3 +115,34 @@ def test_active_view_sections_show_prioritized_before_due_this_week(client, test
 
     assert "⚡ Prioritized Tasks (1)" in html
     assert "📅 Due This Week (2)" in html
+
+
+def test_edit_route_ajax_updates_task_without_redirect(client, test_paths):
+    _, todo_file = test_paths
+    todo_file.write_text("(B) Original task\n", encoding="utf-8")
+
+    response = client.post(
+        "/edit/0",
+        data={"line": "(B) Original task", "text": "Updated task", "priority": "A"},
+        headers={"X-Requested-With": "XMLHttpRequest"},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["success"] is True
+    assert "(A) Updated task" in todo_file.read_text(encoding="utf-8")
+
+
+def test_edit_route_ajax_returns_404_when_task_not_found(client, test_paths):
+    _, todo_file = test_paths
+    todo_file.write_text("(B) Existing task\n", encoding="utf-8")
+
+    response = client.post(
+        "/edit/0",
+        data={"line": "(B) Missing task", "text": "Updated task", "priority": "A"},
+        headers={"X-Requested-With": "XMLHttpRequest"},
+    )
+
+    assert response.status_code == 404
+    payload = response.get_json()
+    assert payload["success"] is False
+    assert "not found" in payload["error"].lower()
