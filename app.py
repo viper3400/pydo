@@ -213,10 +213,11 @@ def get_todos():
 
 
 def sort_active_items(items):
-    """Sort active tasks for display: overdue, today, priority, then other due dates."""
-    from datetime import datetime
+    """Sort active tasks for display by due-date buckets, then priority/no-date tasks."""
+    from datetime import datetime, timedelta
 
     today = datetime.now().strftime("%Y-%m-%d")
+    week_end = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
     def sort_key(todo):
         due = todo.custom_fields.get("due")
@@ -228,14 +229,17 @@ def sort_active_items(items):
         if due == today:
             # Then tasks due today, with priority as tie-breaker.
             return (1, priority, due)
+        if due and due <= week_end:
+            # Keep all due-this-week tasks together, sorted by date then priority.
+            return (2, due, priority)
         if todo.priority:
-            # Then prioritized tasks (with/without due date).
-            return (2, priority, due or "9999-12-31")
+            # Then prioritized tasks that have no due date.
+            return (3, priority, "9999-12-31")
         if due:
-            # Then other due dates, sorted by date.
-            return (3, due, priority)
+            # Then all other due dates, sorted by date then priority.
+            return (4, due, priority)
         # Finally everything without due date/priority.
-        return (4, "9999-12-31", priority)
+        return (5, "9999-12-31", priority)
 
     return sorted(items, key=sort_key)
 
@@ -512,6 +516,22 @@ def format_due_date(date_str):
         return date_obj.strftime("%a, %b %d, %Y")
     except:
         return date_str
+
+
+@app.template_filter('external_link_href')
+def external_link_href(link_value):
+    """Normalize link custom-field values to safe external HTTP(S) URLs."""
+    value = (link_value or "").strip()
+    if not value:
+        return ""
+
+    parsed = urlparse(value)
+    if parsed.scheme in {"http", "https"}:
+        return value
+    if parsed.scheme:
+        # Reject non-web schemes (e.g. javascript:, data:, file:).
+        return ""
+    return f"https://{value}"
 
 
 @app.template_filter('is_overdue')

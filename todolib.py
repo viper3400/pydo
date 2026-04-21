@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
 
+HIDDEN_DISPLAY_CUSTOM_FIELDS = {"due", "waiting", "link"}
+
 
 @dataclass
 class Todo:
@@ -22,6 +24,7 @@ class Todo:
     projects: List[str] = field(default_factory=list)
     contexts: List[str] = field(default_factory=list)
     custom_fields: dict = field(default_factory=dict)
+    links: List[str] = field(default_factory=list)
 
     def _strip_leading_core_metadata(self, text: str) -> str:
         """Strip only leading todo core metadata tokens from a line."""
@@ -84,6 +87,7 @@ class Todo:
         # Extract custom fields (key:value)
         custom_fields = re.findall(r"(\w+):(\S+)", line)
         todo.custom_fields = {k: v for k, v in custom_fields}
+        todo.links = [value for key, value in custom_fields if key.lower() == "link"]
 
         # Update text to clean version
         todo.text = line if not todo.complete else f"x {todo.completion_date or ''} {line}".strip()
@@ -126,7 +130,9 @@ class Todo:
         metadata_tokens.update(
             f"{key}:{value}" if value else f"{key}:"
             for key, value in self.custom_fields.items()
+            if key.lower() in HIDDEN_DISPLAY_CUSTOM_FIELDS
         )
+        metadata_tokens.update(f"link:{link}" for link in self.links if link)
 
         filtered_tokens = [token for token in text.split() if token not in metadata_tokens]
         return " ".join(filtered_tokens)

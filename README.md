@@ -12,7 +12,9 @@ A lightweight, Python-based web application for managing tasks using the [todo.t
 - 🔎 **Visible Active Filter**: Current filter is shown above the task list, with a quick clear action
 - ✏️ **Inline Editing Workflow**: Only one inline edit can be active at a time; if unsaved changes exist, a modal shows marked text and priority changes before switching
 - 🧭 **Focused Due Sections**: Overdue / Due Today / Due This Week are emphasized directly in the main list with section styling (without duplicate sidebar panels)
+- 🗓️ **Weekday Due Labels**: Due badges show weekday and full date for faster scanning
 - ⏳ **Waiting Workflow**: Track blocked tasks with `@waiting` and `waiting:<person>`
+- 🔗 **Task Links**: Support one or more `link:` fields and render them as clickable links below labels
 - ⚡ **Lightweight**: No database required—uses plain text files
 - 🎨 **Modern Design**: Responsive design that works on desktop and mobile
 - 📱 **Mobile-Optimized Layout**: Phone screens use stacked controls, clearer tabs, and tighter task-card spacing for easier touch use
@@ -294,6 +296,7 @@ This app adds behavior beyond the core todo.txt specification in two places: met
 
 - `due:YYYY-MM-DD`: Due date metadata used for overdue/today/soon grouping and due-date filtering
 - `waiting:<person>`: Waiting-owner metadata used for "waiting for person" filtering
+- `link:<url-or-host>`: External reference metadata; supports multiple `link:` entries in one task
 - `@waiting`: Context convention recognized by the app as "blocked/waiting"
 
 Examples:
@@ -301,6 +304,7 @@ Examples:
 Fix API error due:2026-04-20 +Backend @office
 Follow up on contract @waiting +Legal
 Prepare release notes waiting:Alex +Platform
+Draft release notes link:https://example.com/spec link:docs.python.org +Platform
 ```
 
 ### UI/Workflow Extensions
@@ -314,6 +318,9 @@ Prepare release notes waiting:Alex +Platform
 - Active filter state:
   - The current filter is shown above the task list
   - A clear action returns to the current scope list
+- Link rendering:
+  - `link:` entries are shown below label badges
+  - each link is rendered on its own line and opens in a new browser tab
 
 ## Project Structure
 
@@ -356,7 +363,7 @@ The app follows Python best practices:
 
 ## Keyboard Shortcuts
 
-- **Ctrl/Cmd + K**: Focus on add todo input (future enhancement)
+- **Ctrl/Cmd + K**: Focus on add todo input
 
 ## License
 

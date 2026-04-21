@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.0] - 2026-04-21
+
+### Added
+- Support for multiple `link:` metadata entries per task.
+- Task links are now rendered as clickable entries below task labels (one link per line, opens in a new tab).
+
+### Changed
+- Active-list section ordering refined so non-due prioritized tasks appear after `Due This Week` and before `Other Due Dates`.
+- Due+priority tasks now stay in due-date sections (instead of being split into prioritized-only sections).
+- Task-row contrast improved for better readability (stronger borders, clearer hover state, and higher-contrast section backgrounds).
+
+### Fixed
+- Display metadata filtering now uses a known-key allowlist; unknown `key:value` tokens remain visible in task text.
+- `Due This Week` no longer gets split when tasks have both due date and priority; ordering is by due date then priority.
+
 ## [0.4.0] - 2026-04-21
 
 ### Added
