@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.4.0] - 2026-04-21
+
+### Added
+- Scoped sidebar filtering so project/context/priority/waiting filters follow the active tab (`Active` or `Completed`).
+- Priority sidebar filtering via clickable priority entries.
+- Visible "Current filter" indicator with a clear action above the task list.
+- New app favicon and matching navbar brand icon.
+
+### Changed
+- Due-date badges now show weekday in calendar labels (for example `Tue, Apr 21, 2026`).
+- Mobile layout improved with touch-friendly tabs, stacked add-task controls, and tighter task card spacing/alignment.
+- README updated to document filtering scope behavior and explicit PyTodo extensions beyond base todo.txt.
+
+### Fixed
+- Toggling tasks in filtered/completed views now correctly targets the clicked entry.
+- Active sidebar item hover/readability improved (no more low-contrast active hover text).
+- Preserved `due:YYYY-MM-DD` metadata when completing tasks on matching calendar dates.
+
 ## [0.3.0] - 2026-04-20
 
 ### Added
