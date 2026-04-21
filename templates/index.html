@@ -29,16 +29,40 @@
         <!-- Filter Tabs -->
         <ul class="nav nav-tabs mb-3" role="tablist">
             <li class="nav-item">
-                <a class="nav-link {% if filter_by == 'active' %}active{% endif %}" href="{{ url_for('index', filter='active') }}">
+                <a class="nav-link {% if sidebar_scope == 'active' %}active{% endif %}" href="{{ url_for('index', filter='active') }}">
                     Active <span class="badge bg-primary">{{ total_active }}</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if filter_by == 'completed' %}active{% endif %}" href="{{ url_for('index', filter='completed') }}">
+                <a class="nav-link {% if sidebar_scope == 'completed' %}active{% endif %}" href="{{ url_for('index', filter='completed') }}">
                     Completed <span class="badge bg-success">{{ total_completed }}</span>
                 </a>
             </li>
         </ul>
+
+        {% if filter_by not in ['active', 'completed', 'all'] %}
+            <div class="alert alert-secondary py-2 px-3 mb-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Current filter:</strong>
+                    {% if filter_by == 'project' %}
+                        Project <span class="badge bg-info text-dark">+{{ filter_value }}</span>
+                    {% elif filter_by == 'context' %}
+                        Context <span class="badge context-tag">@{{ filter_value }}</span>
+                    {% elif filter_by == 'priority' %}
+                        Priority <span class="badge priority-{{ filter_value | lower }}">{{ filter_value }}</span>
+                    {% elif filter_by == 'waiting' %}
+                        Waiting tasks
+                    {% elif filter_by == 'waiting_for' %}
+                        Waiting for <span class="badge bg-info text-dark">{{ filter_value }}</span>
+                    {% elif filter_by == 'due' %}
+                        Due date <span class="badge bg-secondary">{{ filter_value | format_date }}</span>
+                    {% else %}
+                        {{ filter_by }}{% if filter_value %}: {{ filter_value }}{% endif %}
+                    {% endif %}
+                </div>
+                <a href="{{ url_for('index', filter=sidebar_scope) }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+            </div>
+        {% endif %}
 
         <!-- Todo List -->
         <div class="todo-list">
@@ -146,11 +170,11 @@
                                             <span class="badge {% if todo.custom_fields.get('due') | is_overdue %}bg-danger{% else %}bg-secondary{% endif %} text-white">📅 {{ todo.custom_fields.get('due') | format_date }}</span>
                                         {% endif %}
                                         {% for project in todo.projects %}
-                                            <a href="{{ url_for('filter_project', project=project) }}" class="badge bg-info text-dark text-decoration-none">+{{ project }}</a>
+                                            <a href="{{ url_for('filter_project', project=project, scope=sidebar_scope) }}" class="badge bg-info text-dark text-decoration-none">+{{ project }}</a>
                                         {% endfor %}
                                         {% for context in todo.contexts %}
                                             {% if context != 'waiting' %}
-                                                <a href="{{ url_for('filter_context', context=context) }}" class="badge context-tag text-decoration-none">@{{ context }}</a>
+                                                <a href="{{ url_for('filter_context', context=context, scope=sidebar_scope) }}" class="badge context-tag text-decoration-none">@{{ context }}</a>
                                             {% endif %}
                                         {% endfor %}
                                     </div>
@@ -196,16 +220,16 @@
                 <div class="list-group list-group-flush">
                     {% if waiting_for_people %}
                         {% for person in waiting_for_people %}
-                            <a href="{{ url_for('filter_waiting_for', person=person) }}" class="list-group-item list-group-item-action d-flex justify-content-between">
+                            <a href="{{ url_for('filter_waiting_for', person=person, scope=sidebar_scope) }}" class="list-group-item list-group-item-action d-flex justify-content-between {% if filter_by == 'waiting_for' and filter_value == person %}active{% endif %}">
                                 <span>👤 {{ person }}</span>
                                 <span class="badge bg-info rounded-pill">{{ sidebar_todos | count_waiting_for(person) }}</span>
                             </a>
                         {% endfor %}
-                        <a href="{{ url_for('filter_waiting') }}" class="list-group-item list-group-item-action">
+                        <a href="{{ url_for('filter_waiting', scope=sidebar_scope) }}" class="list-group-item list-group-item-action {% if filter_by == 'waiting' %}active{% endif %}">
                             <small class="text-muted">View all waiting tasks →</small>
                         </a>
                     {% else %}
-                        <a href="{{ url_for('filter_waiting') }}" class="list-group-item list-group-item-action">
+                        <a href="{{ url_for('filter_waiting', scope=sidebar_scope) }}" class="list-group-item list-group-item-action {% if filter_by == 'waiting' %}active{% endif %}">
                             <small>{{ waiting_tasks | length }} task(s) waiting (no person specified)</small>
                         </a>
                     {% endif %}
@@ -221,7 +245,7 @@
                 </div>
                 <div class="list-group list-group-flush">
                     {% for project in projects %}
-                        <a href="{{ url_for('filter_project', project=project) }}" class="list-group-item list-group-item-action d-flex justify-content-between">
+                        <a href="{{ url_for('filter_project', project=project, scope=sidebar_scope) }}" class="list-group-item list-group-item-action d-flex justify-content-between {% if filter_by == 'project' and filter_value == project %}active{% endif %}">
                             <span>+{{ project }}</span>
                             <span class="badge bg-info rounded-pill">{{ sidebar_todos | count_with_project(project) }}</span>
                         </a>
@@ -238,7 +262,7 @@
                 </div>
                 <div class="list-group list-group-flush">
                     {% for context in contexts %}
-                        <a href="{{ url_for('filter_context', context=context) }}" class="list-group-item list-group-item-action d-flex justify-content-between">
+                        <a href="{{ url_for('filter_context', context=context, scope=sidebar_scope) }}" class="list-group-item list-group-item-action d-flex justify-content-between {% if filter_by == 'context' and filter_value == context %}active{% endif %}">
                             <span>@{{ context }}</span>
                             <span class="badge context-tag rounded-pill">{{ sidebar_todos | count_with_context(context) }}</span>
                         </a>
@@ -255,13 +279,13 @@
                 </div>
                 <div class="list-group list-group-flush">
                     {% for priority in priorities %}
-                        <div class="list-group-item d-flex justify-content-between">
+                        <a href="{{ url_for('filter_priority', priority=priority, scope=sidebar_scope) }}" class="list-group-item list-group-item-action d-flex justify-content-between {% if filter_by == 'priority' and filter_value == priority %}active{% endif %}">
                             <span>
                                 <span class="badge priority-{{ priority | lower }}">{{ priority }}</span>
                                 {{ priority | replace('A', 'High') | replace('B', 'Medium') | replace('C', 'Low') }}
                             </span>
                             <span class="badge bg-secondary rounded-pill">{{ sidebar_todos | count_with_priority(priority) }}</span>
-                        </div>
+                        </a>
                     {% endfor %}
                 </div>
             </div>

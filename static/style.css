@@ -235,6 +235,20 @@ body {
     background-color: var(--light-bg);
 }
 
+/* Keep active sidebar filters readable on hover/focus */
+.list-group-item.active,
+.list-group-item.active:hover,
+.list-group-item.active:focus {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+.list-group-item.active small,
+.list-group-item.active span {
+    color: inherit;
+}
+
 /* Navbar */
 .navbar-brand {
     font-weight: 700;
