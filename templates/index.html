@@ -10,7 +10,7 @@
         <div class="card mb-4 shadow-sm">
             <div class="card-body">
                 <h5 class="card-title mb-3">Add New Task</h5>
-                <form method="POST" action="{{ url_for('add_todo') }}" class="d-flex gap-2 flex-wrap">
+                <form method="POST" action="{{ url_for('add_todo') }}" class="d-flex gap-2 flex-wrap add-todo-form">
                     <input type="text" class="form-control flex-grow-1" name="text" placeholder="Enter a new task..." required minlength="1">
                     <select class="form-select" name="priority" style="min-width: 150px; max-width: 170px;">
                         <option value="">Priority</option>
@@ -41,7 +41,7 @@
         </ul>
 
         {% if filter_by not in ['active', 'completed', 'all'] %}
-            <div class="alert alert-secondary py-2 px-3 mb-3 d-flex justify-content-between align-items-center">
+            <div class="alert alert-secondary py-2 px-3 mb-3 d-flex justify-content-between align-items-center active-filter-alert">
                 <div>
                     <strong>Current filter:</strong>
                     {% if filter_by == 'project' %}
@@ -55,7 +55,7 @@
                     {% elif filter_by == 'waiting_for' %}
                         Waiting for <span class="badge bg-info text-dark">{{ filter_value }}</span>
                     {% elif filter_by == 'due' %}
-                        Due date <span class="badge bg-secondary">{{ filter_value | format_date }}</span>
+                        Due date <span class="badge bg-secondary">{{ filter_value | format_due_date }}</span>
                     {% else %}
                         {{ filter_by }}{% if filter_value %}: {{ filter_value }}{% endif %}
                     {% endif %}
@@ -118,7 +118,7 @@
                     {% endif %}
 
                     <div class="card mb-2 todo-item {% if todo.complete %}completed{% endif %} {% if filter_by == 'active' %}framed-section-card section-{{ group_key }}{% endif %}" data-index="{{ loop.index0 }}">
-                        <div class="card-body py-2 px-3 d-flex align-items-center gap-2">
+                        <div class="card-body py-2 px-3 d-flex align-items-center gap-2 todo-row">
                             <!-- Checkbox -->
                             <form method="POST" action="{{ url_for('toggle_todo', index=loop.index0) }}" class="toggle-form m-0" style="flex-shrink: 0;">
                                 <input type="hidden" name="line" value="{{ todo.to_line() }}">
@@ -128,7 +128,7 @@
                             </form>
 
                             <!-- Task Content -->
-                            <div class="flex-grow-1" style="cursor: pointer;">
+                            <div class="flex-grow-1 todo-content" style="cursor: pointer;">
                                 <div class="todo-text {% if todo.complete %}text-decoration-line-through text-muted{% endif %}" onclick="editTask(this, event)" data-line="{{ todo.to_line() }}">
                                     {% if todo.priority %}
                                         <span class="badge priority-{{ todo.priority | lower }}">{{ todo.priority }}</span>
@@ -167,7 +167,7 @@
                                             <span class="badge bg-info text-white">⏳ Waiting{% if todo.custom_fields.get('waiting') %} for {{ todo.custom_fields.get('waiting') }}{% endif %}</span>
                                         {% endif %}
                                         {% if todo.custom_fields.get('due') %}
-                                            <span class="badge {% if todo.custom_fields.get('due') | is_overdue %}bg-danger{% else %}bg-secondary{% endif %} text-white">📅 {{ todo.custom_fields.get('due') | format_date }}</span>
+                                            <span class="badge {% if todo.custom_fields.get('due') | is_overdue %}bg-danger{% else %}bg-secondary{% endif %} text-white">📅 {{ todo.custom_fields.get('due') | format_due_date }}</span>
                                         {% endif %}
                                         {% for project in todo.projects %}
                                             <a href="{{ url_for('filter_project', project=project, scope=sidebar_scope) }}" class="badge bg-info text-dark text-decoration-none">+{{ project }}</a>

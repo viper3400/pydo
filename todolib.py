@@ -23,6 +23,24 @@ class Todo:
     contexts: List[str] = field(default_factory=list)
     custom_fields: dict = field(default_factory=dict)
 
+    def _strip_leading_core_metadata(self, text: str) -> str:
+        """Strip only leading todo core metadata tokens from a line."""
+        tokens = text.split()
+        idx = 0
+
+        if self.complete and idx < len(tokens) and tokens[idx] == "x":
+            idx += 1
+            if self.completion_date and idx < len(tokens) and tokens[idx] == self.completion_date:
+                idx += 1
+
+        if self.priority and idx < len(tokens) and tokens[idx] == f"({self.priority})":
+            idx += 1
+
+        if self.creation_date and idx < len(tokens) and tokens[idx] == self.creation_date:
+            idx += 1
+
+        return " ".join(tokens[idx:])
+
     @classmethod
     def from_line(cls, line: str) -> "Todo":
         """Parse a single todo.txt line into a Todo object."""
@@ -91,16 +109,8 @@ class Todo:
         if self.creation_date:
             parts.append(self.creation_date)
 
-        # Reconstruct the task text
-        task_text = self.text
-        if self.complete:
-            task_text = task_text.replace("x ", "", 1).strip()
-            if self.completion_date:
-                task_text = task_text.replace(self.completion_date, "", 1).strip()
-        if self.priority:
-            task_text = task_text.replace(f"({self.priority}) ", "", 1)
-        if self.creation_date:
-            task_text = task_text.replace(f"{self.creation_date} ", "", 1)
+        # Reconstruct the task text without removing date fragments inside fields like due:YYYY-MM-DD.
+        task_text = self._strip_leading_core_metadata(self.text)
 
         parts.append(task_text)
         return " ".join(filter(None, parts))
@@ -123,16 +133,7 @@ class Todo:
 
     def get_edit_text(self) -> str:
         """Get editable task text (stripped of core metadata, keeps task markers)."""
-        text = self.text
-        if self.complete:
-            text = text.replace("x ", "", 1).strip()
-            if self.completion_date:
-                text = text.replace(self.completion_date, "", 1).strip()
-        if self.priority:
-            text = text.replace(f"({self.priority}) ", "", 1)
-        if self.creation_date:
-            text = text.replace(f"{self.creation_date} ", "", 1)
-        return text.strip()
+        return self._strip_leading_core_metadata(self.text).strip()
 
 
 class TodoList:

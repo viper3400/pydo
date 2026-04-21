@@ -503,6 +503,17 @@ def format_date(date_str):
         return date_str
 
 
+@app.template_filter('format_due_date')
+def format_due_date(date_str):
+    """Format due date with weekday for calendar-style display."""
+    from datetime import datetime
+    try:
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        return date_obj.strftime("%a, %b %d, %Y")
+    except:
+        return date_str
+
+
 @app.template_filter('is_overdue')
 def is_overdue(date_str):
     """Check if date is overdue (in the past)."""
