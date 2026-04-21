@@ -20,7 +20,7 @@ Keep changes minimal, targeted, and reversible.
 - Avoid adding cross-cutting logic directly in templates.
 - Prefer extending existing helpers over duplicating logic.
 - For actions triggered from filtered/sorted UI lists, use stable task identity (for example original line content) instead of visible list index positions.
-- Keep active-list ordering/grouping contracts aligned between backend sorting (`app.py`) and template section logic (`templates/index.html`); due-dated tasks (including due+priority) must stay in due buckets, and non-due prioritized tasks should appear after `Due This Week` and before `Other Due Dates`.
+- Keep active-list ordering/grouping contracts aligned between backend sorting (`app.py`) and template section logic (`templates/index.html`); due-dated tasks (including due+priority) must stay in due buckets, and non-due prioritized tasks should appear after `Due Today` and before `Due This Week`.
 - Treat hidden display metadata keys as explicit allowlist behavior in `todolib.py` (currently `due`, `waiting`, `link`); unknown `key:value` tokens should remain visible unless explicitly added.
 
 ## 3. Security Rules (Important)
@@ -74,7 +74,7 @@ When implementing changes:
   - `pytest -q`
   - `python3 -m py_compile app.py todolib.py`
 - For list mutation behavior (toggle/edit/delete), verify correctness from both `active` and `completed` views and from filtered views (project/context/priority/waiting) to avoid index-mapping regressions.
-- For sorting/grouping changes, manually verify section continuity and order in active view: `Overdue` -> `Due Today` -> `Due This Week` -> `Prioritized Tasks` (no due date) -> `Other Due Dates` -> `Other Tasks`.
+- For sorting/grouping changes, manually verify section continuity and order in active view: `Overdue` -> `Due Today` -> `Prioritized Tasks` (no due date) -> `Due This Week` -> `Other Due Dates` -> `Other Tasks`.
 - For link metadata behavior, verify multiple `link:` entries render one-per-line below badges and open in a new browser tab.
 - For UI changes, mention what should be manually verified in browser.
 

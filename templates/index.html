@@ -75,10 +75,10 @@
                             {% set counts.overdue = counts.overdue + 1 %}
                         {% elif due == today %}
                             {% set counts.due_today = counts.due_today + 1 %}
+                        {% elif todo.priority and not due %}
+                            {% set counts.priority = counts.priority + 1 %}
                         {% elif todo in due_soon %}
                             {% set counts.due_soon = counts.due_soon + 1 %}
-                        {% elif todo.priority %}
-                            {% set counts.priority = counts.priority + 1 %}
                         {% elif due %}
                             {% set counts.due_later = counts.due_later + 1 %}
                         {% else %}
@@ -96,12 +96,12 @@
                     {% elif due == today %}
                         {% set group_key = 'due_today' %}
                         {% set group_label = '📍 Due Today (' ~ counts.due_today ~ ')' %}
+                    {% elif todo.priority and not due %}
+                        {% set group_key = 'priority' %}
+                        {% set group_label = '⚡ Prioritized Tasks (' ~ counts.priority ~ ')' %}
                     {% elif todo in due_soon %}
                         {% set group_key = 'due_soon' %}
                         {% set group_label = '📅 Due This Week (' ~ counts.due_soon ~ ')' %}
-                    {% elif todo.priority %}
-                        {% set group_key = 'priority' %}
-                        {% set group_label = '⚡ Prioritized Tasks (' ~ counts.priority ~ ')' %}
                     {% elif due %}
                         {% set group_key = 'due_later' %}
                         {% set group_label = '🗓️ Other Due Dates (' ~ counts.due_later ~ ')' %}

@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.1] - 2026-04-21
+
+### Changed
+- Active-list section order refined so `Prioritized Tasks` (no due date) appears between `Due Today` and `Due This Week`.
+
+### Fixed
+- Ensured tasks with both due date and priority remain in due-date sections while non-due prioritized tasks are grouped separately in the intended position.
+
+### Added
+- Regression coverage for active-list ordering and grouping behavior in app tests.
+
 ## [0.5.0] - 2026-04-21
 
 ### Added
