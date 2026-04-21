@@ -182,11 +182,14 @@ class TodoList:
     def toggle(self, index: int) -> None:
         """Toggle a todo's completion status."""
         if 0 <= index < len(self.todos):
-            self.todos[index].complete = not self.todos[index].complete
-            if self.todos[index].complete:
-                self.todos[index].completion_date = datetime.now().strftime("%Y-%m-%d")
+            todo = self.todos[index]
+            todo.complete = not todo.complete
+            if todo.complete:
+                todo.completion_date = datetime.now().strftime("%Y-%m-%d")
             else:
-                self.todos[index].completion_date = None
+                # Remove completion prefix so reopened tasks are serialized as active.
+                todo.text = re.sub(r"^x(?:\s+\d{4}-\d{2}-\d{2})?\s+", "", todo.text).strip()
+                todo.completion_date = None
             self.save()
 
     def toggle_by_line(self, line: str) -> None:
