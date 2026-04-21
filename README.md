@@ -11,6 +11,7 @@ A lightweight, Python-based web application for managing tasks using the [todo.t
 - 🧭 **Scoped Sidebar Filters**: Sidebar categories follow the active tab (`Active` vs `Completed`) and do not mix lists
 - 🔎 **Visible Active Filter**: Current filter is shown above the task list, with a quick clear action
 - ✏️ **Inline Editing Workflow**: Only one inline edit can be active at a time; if unsaved changes exist, a modal shows marked text and priority changes before switching
+- 💾 **Smooth Inline Save**: Inline edit saves update the page content without a full page reload, so scroll position stays stable
 - 🧭 **Focused Due Sections**: Overdue / Due Today / Due This Week are emphasized directly in the main list with section styling (without duplicate sidebar panels)
 - 🗓️ **Weekday Due Labels**: Due badges show weekday and full date for faster scanning
 - ⏳ **Waiting Workflow**: Track blocked tasks with `@waiting` and `waiting:<person>`

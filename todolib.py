@@ -215,7 +215,7 @@ class TodoList:
         new_text: str,
         priority: Optional[str] = None,
         update_priority: bool = False,
-    ) -> None:
+    ) -> bool:
         """Update a todo by its original line content."""
         for i, todo in enumerate(self.todos):
             if todo.to_line() == old_line:
@@ -224,7 +224,8 @@ class TodoList:
                 if update_priority:
                     todo.priority = priority
                 self.save()
-                return
+                return True
+        return False
 
     def get_by_project(self, project: str) -> List[Todo]:
         """Filter todos by project."""
