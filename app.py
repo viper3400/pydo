@@ -229,12 +229,12 @@ def sort_active_items(items):
         if due == today:
             # Then tasks due today, with priority as tie-breaker.
             return (1, priority, due)
+        if todo.priority and not due:
+            # Then prioritized tasks that have no due date.
+            return (2, priority, "9999-12-31")
         if due and due <= week_end:
             # Keep all due-this-week tasks together, sorted by date then priority.
-            return (2, due, priority)
-        if todo.priority:
-            # Then prioritized tasks that have no due date.
-            return (3, priority, "9999-12-31")
+            return (3, due, priority)
         if due:
             # Then all other due dates, sorted by date then priority.
             return (4, due, priority)
