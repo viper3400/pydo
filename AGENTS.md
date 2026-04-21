@@ -2,111 +2,65 @@
 
 Guidance for AI/code agents working in this repository.
 
-## 1. Purpose and Scope
+## 1. Scope
 
-- App type: single-user Flask web app for `todo.txt` task management.
-- Data model: file-backed (`data/todo.txt`), no database.
-- Core modules:
-  - `app.py`: web routes, auth gate, rendering, request handling.
-  - `todolib.py`: todo parsing, serialization, and query logic.
-  - `templates/`, `static/`: UI.
+- Single-user Flask app with file-backed state (`data/todo.txt`).
+- Core split:
+  - `app.py`: routing, request handling, auth/session.
+  - `todolib.py`: parsing, serialization, query/update logic.
+  - `templates/`, `static/`: presentation and client behavior.
 
-Keep changes minimal, targeted, and reversible.
+Prefer minimal, reversible changes.
 
-## 2. Architecture Rules
+## 2. Architecture Contracts
 
-- Keep todo parsing/business logic in `todolib.py`.
-- Keep Flask route/controller behavior in `app.py`.
-- Avoid adding cross-cutting logic directly in templates.
-- Prefer extending existing helpers over duplicating logic.
-- For actions triggered from filtered/sorted UI lists, use stable task identity (for example original line content) instead of visible list index positions.
-- Keep active-list ordering/grouping contracts aligned between backend sorting (`app.py`) and template section logic (`templates/index.html`); due-dated tasks (including due+priority) must stay in due buckets, and non-due prioritized tasks should appear after `Due Today` and before `Due This Week`.
-- Treat hidden display metadata keys as explicit allowlist behavior in `todolib.py` (currently `due`, `waiting`, `link`); unknown `key:value` tokens should remain visible unless explicitly added.
+- Keep business logic in `todolib.py`; keep controller flow in `app.py`.
+- Use stable task identity for mutations from filtered/sorted UI (line-based, not visible index).
+- Keep active-list sort/group behavior aligned between `app.py` and `templates/index.html`.
+- Preserve current active section order:
+  `Overdue -> Due Today -> Prioritized (no due) -> Due This Week -> Other Due Dates -> Other Tasks`.
+- Due+priority tasks must remain in due-date sections.
+- Hidden display metadata is allowlist-based (`due`, `waiting`, `link`); unknown `key:value` stays visible unless explicitly added.
 
-## 3. Security Rules (Important)
+## 3. Security
 
 - Never commit secrets or plaintext passwords.
-- Password protection is env-driven:
+- Auth/session settings are env-driven:
   - `PYTODO_PASSWORD` or `PYTODO_PASSWORD_HASH`
   - `SECRET_KEY`
   - `PYTODO_SESSION_COOKIE_NAME` (defaults to `pytodo_session`)
-- If auth behavior is changed, preserve:
-  - global login gate (`before_request` style),
-  - brute-force lock file flow (`data/.auth_blocked`),
-  - failed attempts accounting.
-- Do not weaken auth/session protections or remove lock behavior unless explicitly requested.
+- Preserve login gate, failed-attempt accounting, and lock-file flow (`data/.auth_blocked`) unless explicitly requested otherwise.
 
-## 4. File/Data Safety
+## 4. Data Safety
 
-- `data/` is runtime state. Treat it as user data.
-- Do not delete or overwrite `data/todo.txt` unless task explicitly requires it.
+- Treat `data/` as user data; do not delete/overwrite `data/todo.txt` unless explicitly requested.
 - Avoid destructive git/file operations.
 
-## 5. Coding Conventions
+## 5. Validation
 
-- Python:
-  - Keep functions small and focused.
-  - Preserve existing style and naming.
-  - Add/keep docstrings where meaningful.
-  - Avoid broad `except:` unless intentional and safe.
-- Templates/CSS/JS:
-  - Reuse existing Bootstrap-oriented patterns.
-  - Keep UI changes consistent with current structure.
-  - Favor small, explicit template changes over large rewrites.
-
-## 6. Change Workflow
-
-When implementing changes:
-
-1. Inspect relevant files first (`app.py`, `todolib.py`, template/static files).
-2. Implement minimal patch.
-3. Run quick validations:
-   - `python3 -m py_compile app.py todolib.py`
-4. Summarize:
-   - what changed,
-   - why,
-   - any limitations or manual verification needed.
-
-## 7. Testing Expectations
-
-- Use `pytest` for automated checks. Baseline tests live in `tests/`.
-- For logic changes, perform at least lightweight runtime/syntax checks.
+- Prefer `pytest`; always run lightweight compile checks:
   - `pytest -q`
   - `python3 -m py_compile app.py todolib.py`
-- For list mutation behavior (toggle/edit/delete), verify correctness from both `active` and `completed` views and from filtered views (project/context/priority/waiting) to avoid index-mapping regressions.
-- For sorting/grouping changes, manually verify section continuity and order in active view: `Overdue` -> `Due Today` -> `Prioritized Tasks` (no due date) -> `Due This Week` -> `Other Due Dates` -> `Other Tasks`.
-- For link metadata behavior, verify multiple `link:` entries render one-per-line below badges and open in a new browser tab.
-- For UI changes, mention what should be manually verified in browser.
+- For list mutations (toggle/edit/delete), verify active/completed and filtered views.
+- For UI behavior changes, include manual browser verification notes.
 
-## 8. Dependency and Deployment Guardrails
+## 6. Dependencies/Deploy
 
 - Do not introduce heavy new dependencies unless necessary.
-- Keep app runnable with current lightweight setup.
-- If deployment/auth docs are updated, keep README instructions copy/paste friendly.
-- Container publishing is automated by `.github/workflows/container-publish.yml`; it publishes on semver tags (`v*.*.*`) and manual dispatch, and produces `sha-*` plus semver tags.
+- Keep deployment/auth docs copy-paste friendly.
 - Keep reverse-proxy compatibility for path-prefix deployments (for example `/pydo`) by preserving forwarded-prefix behavior.
 
-## 9. Preferred Commit Message Style
+## 7. Commits
 
-- Conventional style:
-  - `feat: ...`
-  - `fix: ...`
-  - `docs: ...`
-  - `refactor: ...`
-- Keep subject concise and specific to user-visible behavior or code area.
+- Use conventional messages (`feat`, `fix`, `docs`, `refactor`) with concise, specific subjects.
 
-## 10. README Sync Policy
+## 8. README Sync
 
-- Update `README.md` in the same change whenever any of these are modified:
-  - setup/install/run steps,
-  - environment variables or config,
-  - auth/security behavior,
-  - user-visible features or workflows.
-- If README changes are intentionally skipped, include `[docs-skip]` in PR title or PR body with a short reason.
-- When unsure, update `README.md`.
+- Update `README.md` in the same change when setup/config/auth or user-visible workflow changes.
+- If intentionally skipped, include `[docs-skip]` in PR title/body with a short reason.
 
-## 11. Workflow Governance Sync Policy
+## 9. Governance Sync
 
 - If `.github/workflows/*` changes, update `AGENTS.md` in the same change.
-- If an `AGENTS.md` update is intentionally skipped, include `[agents-skip]` in PR title or PR body with a short reason.
+- If intentionally skipped, include `[agents-skip]` in PR title/body with a short reason.
 - PRs opened by `dependabot[bot]` are exempt from README/AGENTS guard requirements in `.github/workflows/readme-guard.yml`.

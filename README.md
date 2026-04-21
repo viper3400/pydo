@@ -12,6 +12,7 @@ A lightweight, Python-based web application for managing tasks using the [todo.t
 - 🔎 **Visible Active Filter**: Current filter is shown above the task list, with a quick clear action
 - ✏️ **Inline Editing Workflow**: Only one inline edit can be active at a time; if unsaved changes exist, a modal shows marked text and priority changes before switching
 - 💾 **Smooth Inline Save**: Inline edit saves update the page content without a full page reload, so scroll position stays stable
+- 🗑️ **Delete Confirmation Modal**: Task deletion uses an in-app modal with task preview instead of a browser confirm dialog
 - 🧭 **Focused Due Sections**: Overdue / Due Today / Due This Week are emphasized directly in the main list with section styling (without duplicate sidebar panels)
 - 🗓️ **Weekday Due Labels**: Due badges show weekday and full date for faster scanning
 - ⏳ **Waiting Workflow**: Track blocked tasks with `@waiting` and `waiting:<person>`
@@ -325,6 +326,9 @@ Draft release notes link:https://example.com/spec link:docs.python.org +Platform
 - Link rendering:
   - `link:` entries are shown below label badges
   - each link is rendered on its own line and opens in a new browser tab
+- Delete workflow:
+  - delete actions open an in-app confirmation modal
+  - the modal shows the task text before final confirmation
 
 ## Project Structure
 
