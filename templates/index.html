@@ -161,7 +161,7 @@
                                 {% endif %}
 
                                 <!-- Tags -->
-                                {% if todo.projects or todo.contexts or todo.custom_fields.get('due') or 'waiting' in todo.contexts or todo.custom_fields.get('waiting') %}
+                                {% if todo.projects or todo.contexts or todo.custom_fields.get('due') or todo.links or 'waiting' in todo.contexts or todo.custom_fields.get('waiting') %}
                                     <div class="mt-1">
                                         {% if 'waiting' in todo.contexts or todo.custom_fields.get('waiting') %}
                                             <span class="badge bg-info text-white">⏳ Waiting{% if todo.custom_fields.get('waiting') %} for {{ todo.custom_fields.get('waiting') }}{% endif %}</span>
@@ -178,6 +178,16 @@
                                             {% endif %}
                                         {% endfor %}
                                     </div>
+                                    {% if todo.links %}
+                                        <div class="todo-link-list mt-1">
+                                            {% for link_value in todo.links %}
+                                                {% set external_link = link_value | external_link_href %}
+                                                {% if external_link %}
+                                                    <a href="{{ external_link }}" target="_blank" rel="noopener noreferrer" class="todo-link-item d-block text-decoration-none">🔗 {{ link_value }}</a>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
                                 {% endif %}
 
                                 <!-- Metadata -->
