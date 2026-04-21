@@ -312,6 +312,9 @@ Draft release notes link:https://example.com/spec link:docs.python.org +Platform
 - Waiting views:
   - "View all waiting tasks"
   - "View tasks waiting on a specific person"
+- Active-list section order:
+  - `Overdue` -> `Due Today` -> `Prioritized Tasks` (no due date) -> `Due This Week` -> `Other Due Dates` -> `Other Tasks`
+  - Tasks that have both `due` and `priority` remain in due-date sections (they are not moved into the prioritized-only section).
 - Scope-aware sidebar filtering:
   - Sidebar categories are scoped to the current tab (`Active` or `Completed`)
   - Project/context/priority clicks stay in that scope
