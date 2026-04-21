@@ -19,6 +19,7 @@ Keep changes minimal, targeted, and reversible.
 - Keep Flask route/controller behavior in `app.py`.
 - Avoid adding cross-cutting logic directly in templates.
 - Prefer extending existing helpers over duplicating logic.
+- For actions triggered from filtered/sorted UI lists, use stable task identity (for example original line content) instead of visible list index positions.
 
 ## 3. Security Rules (Important)
 
@@ -70,6 +71,7 @@ When implementing changes:
 - For logic changes, perform at least lightweight runtime/syntax checks.
   - `pytest -q`
   - `python3 -m py_compile app.py todolib.py`
+- For list mutation behavior (toggle/edit/delete), verify correctness from both `active` and `completed` views and from filtered views (project/context/priority/waiting) to avoid index-mapping regressions.
 - For UI changes, mention what should be manually verified in browser.
 
 ## 8. Dependency and Deployment Guardrails
