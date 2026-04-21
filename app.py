@@ -240,18 +240,39 @@ def sort_active_items(items):
     return sorted(items, key=sort_key)
 
 
-def get_template_context(todos, items, filter_by="active", filter_value=None):
+def _normalize_sidebar_scope(scope: str) -> str:
+    """Normalize sidebar scope to active/completed."""
+    normalized = (scope or "active").strip().lower()
+    if normalized in {"active", "completed"}:
+        return normalized
+    return "active"
+
+
+def _get_items_for_scope(todos, scope: str):
+    """Return tasks for the given scope."""
+    if _normalize_sidebar_scope(scope) == "completed":
+        return todos.get_completed()
+    return todos.get_active()
+
+
+def get_template_context(todos, items, filter_by="active", filter_value=None, sidebar_scope="active"):
     """Build the template context with all necessary data."""
     from datetime import datetime
 
     today = datetime.now().strftime("%Y-%m-%d")
     active_items = todos.get_active()
-    active_projects = sorted({project for todo in active_items for project in todo.projects})
-    active_contexts = sorted({context for todo in active_items for context in todo.contexts})
-    active_priorities = sorted({todo.priority for todo in active_items if todo.priority})
-    active_waiting_for_people = sorted({
+    scoped_items = _get_items_for_scope(todos, sidebar_scope)
+    normalized_scope = _normalize_sidebar_scope(sidebar_scope)
+    scoped_projects = sorted({project for todo in scoped_items for project in todo.projects})
+    scoped_contexts = sorted({context for todo in scoped_items for context in todo.contexts})
+    scoped_priorities = sorted({todo.priority for todo in scoped_items if todo.priority})
+    waiting_tasks = [
+        todo for todo in scoped_items
+        if 'waiting' in todo.contexts or todo.custom_fields.get('waiting')
+    ]
+    scoped_waiting_for_people = sorted({
         todo.custom_fields.get("waiting")
-        for todo in active_items
+        for todo in scoped_items
         if todo.custom_fields.get("waiting")
     })
     due_today = [
@@ -265,16 +286,17 @@ def get_template_context(todos, items, filter_by="active", filter_value=None):
 
     return {
         "todos": items,
-        "sidebar_todos": active_items,
+        "sidebar_todos": scoped_items,
+        "sidebar_scope": normalized_scope,
         "today": today,
-        "projects": active_projects,
-        "contexts": active_contexts,
-        "priorities": active_priorities,
+        "projects": scoped_projects,
+        "contexts": scoped_contexts,
+        "priorities": scoped_priorities,
         "overdue": todos.get_overdue(),
         "due_today": due_today,
         "due_soon": due_soon,
-        "waiting_tasks": todos.get_waiting(),
-        "waiting_for_people": active_waiting_for_people,
+        "waiting_tasks": waiting_tasks,
+        "waiting_for_people": scoped_waiting_for_people,
         "filter_by": filter_by,
         "filter_value": filter_value,
         "total_active": len(todos.get_active()),
@@ -290,12 +312,15 @@ def index():
 
     if filter_by == "completed":
         items = todos.get_completed()
+        sidebar_scope = "completed"
     elif filter_by == "all":
         items = todos.todos
+        sidebar_scope = request.args.get("scope", "active")
     else:  # active (default)
         items = sort_active_items(todos.get_active())
+        sidebar_scope = "active"
 
-    context = get_template_context(todos, items, filter_by)
+    context = get_template_context(todos, items, filter_by, sidebar_scope=sidebar_scope)
     return render_template("index.html", **context)
 
 
@@ -372,8 +397,9 @@ def edit_todo(index):
 def filter_project(project):
     """Show todos for a specific project."""
     todos = get_todos()
-    items = todos.get_by_project(project)
-    context = get_template_context(todos, items, "project", project)
+    sidebar_scope = request.args.get("scope", "active")
+    items = [t for t in _get_items_for_scope(todos, sidebar_scope) if project in t.projects]
+    context = get_template_context(todos, items, "project", project, sidebar_scope=sidebar_scope)
     return render_template("index.html", **context)
 
 
@@ -381,9 +407,30 @@ def filter_project(project):
 def filter_context(context):
     """Show todos for a specific context."""
     todos = get_todos()
-    items = todos.get_by_context(context)
-    context_dict = get_template_context(todos, items, "context", context)
+    sidebar_scope = request.args.get("scope", "active")
+    items = [t for t in _get_items_for_scope(todos, sidebar_scope) if context in t.contexts]
+    context_dict = get_template_context(todos, items, "context", context, sidebar_scope=sidebar_scope)
     return render_template("index.html", **context_dict)
+
+
+@app.route("/priority/<priority>")
+def filter_priority(priority):
+    """Show todos for a specific priority."""
+    todos = get_todos()
+    sidebar_scope = request.args.get("scope", "active")
+    normalized_priority = (priority or "").strip().upper()
+    if normalized_priority not in {"A", "B", "C"}:
+        return redirect(url_for("index", filter=sidebar_scope))
+
+    items = [t for t in _get_items_for_scope(todos, sidebar_scope) if t.priority == normalized_priority]
+    context = get_template_context(
+        todos,
+        items,
+        "priority",
+        normalized_priority,
+        sidebar_scope=sidebar_scope,
+    )
+    return render_template("index.html", **context)
 
 
 @app.route("/due/<date>")
@@ -391,7 +438,7 @@ def filter_due(date):
     """Show todos due on a specific date."""
     todos = get_todos()
     items = [t for t in todos.todos if t.custom_fields.get('due') == date and not t.complete]
-    context = get_template_context(todos, items, "due", date)
+    context = get_template_context(todos, items, "due", date, sidebar_scope="active")
     return render_template("index.html", **context)
 
 
@@ -399,8 +446,12 @@ def filter_due(date):
 def filter_waiting():
     """Show all waiting tasks."""
     todos = get_todos()
-    items = todos.get_waiting()
-    context = get_template_context(todos, items, "waiting")
+    sidebar_scope = request.args.get("scope", "active")
+    items = [
+        t for t in _get_items_for_scope(todos, sidebar_scope)
+        if 'waiting' in t.contexts or t.custom_fields.get('waiting')
+    ]
+    context = get_template_context(todos, items, "waiting", sidebar_scope=sidebar_scope)
     return render_template("index.html", **context)
 
 
@@ -408,8 +459,12 @@ def filter_waiting():
 def filter_waiting_for(person):
     """Show tasks waiting for a specific person."""
     todos = get_todos()
-    items = todos.get_waiting_for_person(person)
-    context = get_template_context(todos, items, "waiting_for", person)
+    sidebar_scope = request.args.get("scope", "active")
+    items = [
+        t for t in _get_items_for_scope(todos, sidebar_scope)
+        if t.custom_fields.get('waiting', '').lower() == person.lower()
+    ]
+    context = get_template_context(todos, items, "waiting_for", person, sidebar_scope=sidebar_scope)
     return render_template("index.html", **context)
 
 
@@ -444,6 +499,17 @@ def format_date(date_str):
     try:
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         return date_obj.strftime("%b %d, %Y")
+    except:
+        return date_str
+
+
+@app.template_filter('format_due_date')
+def format_due_date(date_str):
+    """Format due date with weekday for calendar-style display."""
+    from datetime import datetime
+    try:
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        return date_obj.strftime("%a, %b %d, %Y")
     except:
         return date_str
 

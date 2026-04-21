@@ -7,12 +7,15 @@ A lightweight, Python-based web application for managing tasks using the [todo.t
 - ✅ **Full todo.txt Support**: Parse and manage tasks in standard todo.txt format
 - 📝 **Simple Web Interface**: Clean, responsive UI built with Bootstrap 5
 - 🏷️ **Organize Tasks**: Support for priorities (A-Z), projects (+ProjectName), and contexts (@context)
-- 📊 **Smart Filtering**: View tasks by status, project, or context
+- 📊 **Smart Filtering**: View tasks by status, project, context, or priority
+- 🧭 **Scoped Sidebar Filters**: Sidebar categories follow the active tab (`Active` vs `Completed`) and do not mix lists
+- 🔎 **Visible Active Filter**: Current filter is shown above the task list, with a quick clear action
 - ✏️ **Inline Editing Workflow**: Only one inline edit can be active at a time; if unsaved changes exist, a modal shows marked text and priority changes before switching
 - 🧭 **Focused Due Sections**: Overdue / Due Today / Due This Week are emphasized directly in the main list with section styling (without duplicate sidebar panels)
 - ⏳ **Waiting Workflow**: Track blocked tasks with `@waiting` and `waiting:<person>`
 - ⚡ **Lightweight**: No database required—uses plain text files
 - 🎨 **Modern Design**: Responsive design that works on desktop and mobile
+- 📱 **Mobile-Optimized Layout**: Phone screens use stacked controls, clearer tabs, and tighter task-card spacing for easier touch use
 
 ## Installation
 
@@ -283,24 +286,34 @@ x 2026-04-16 2026-04-15 Sent report +ProjectY
 **Custom Fields**: `key:value` anywhere in the task
 - Example: `Fix bug due:2026-04-20 @bug`
 
-## Project Extensions (Not Default todo.txt Spec)
+## PyTodo Extensions Beyond Base todo.txt
 
-This app supports a few practical extensions that are not part of the default todo.txt specification.
+This app adds behavior beyond the core todo.txt specification in two places: metadata fields in task lines, and UI/workflow features.
 
-### Waiting Features
+### Metadata Extensions In Task Lines
 
-- `@waiting`: Marks a task as waiting/blocked
-- `waiting:<person>`: Marks who you are waiting on
+- `due:YYYY-MM-DD`: Due date metadata used for overdue/today/soon grouping and due-date filtering
+- `waiting:<person>`: Waiting-owner metadata used for "waiting for person" filtering
+- `@waiting`: Context convention recognized by the app as "blocked/waiting"
 
 Examples:
 ```
+Fix API error due:2026-04-20 +Backend @office
 Follow up on contract @waiting +Legal
 Prepare release notes waiting:Alex +Platform
 ```
 
-In the UI, you can:
-- View all waiting tasks via the Waiting filter
-- View tasks waiting on a specific person via `waiting:<person>`
+### UI/Workflow Extensions
+
+- Waiting views:
+  - "View all waiting tasks"
+  - "View tasks waiting on a specific person"
+- Scope-aware sidebar filtering:
+  - Sidebar categories are scoped to the current tab (`Active` or `Completed`)
+  - Project/context/priority clicks stay in that scope
+- Active filter state:
+  - The current filter is shown above the task list
+  - A clear action returns to the current scope list
 
 ## Project Structure
 
