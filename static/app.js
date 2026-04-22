@@ -387,6 +387,34 @@ function bindDynamicHandlers() {
             }
         });
     });
+
+    // Due date quick actions (Today/Tomorrow) via AJAX so repeated clicks stay in sync.
+    const dueAdjustForms = document.querySelectorAll('.due-adjust-form');
+    dueAdjustForms.forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const body = new URLSearchParams(new FormData(this));
+
+            try {
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body
+                });
+                const data = await response.json().catch(() => ({ success: false }));
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to update due date');
+                }
+
+                await refreshContentPreserveScroll();
+            } catch (error) {
+                alert(error.message || 'Failed to update due date');
+            }
+        });
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {

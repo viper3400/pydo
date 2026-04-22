@@ -146,3 +146,31 @@ def test_edit_route_ajax_returns_404_when_task_not_found(client, test_paths):
     payload = response.get_json()
     assert payload["success"] is False
     assert "not found" in payload["error"].lower()
+
+
+def test_tomorrow_route_postpones_due_date(client, test_paths):
+    _, todo_file = test_paths
+    todo_file.write_text("Call vendor due:2026-04-22\n", encoding="utf-8")
+
+    response = client.post(
+        "/tomorrow/0",
+        data={"line": "Call vendor due:2026-04-22"},
+    )
+
+    assert response.status_code == 302
+    updated = todo_file.read_text(encoding="utf-8")
+    assert "due:2026-04-23" in updated
+
+
+def test_today_route_sets_due_date_to_today(client, test_paths):
+    _, todo_file = test_paths
+    todo_file.write_text("Call vendor due:2026-04-20\n", encoding="utf-8")
+
+    response = client.post(
+        "/today/0",
+        data={"line": "Call vendor due:2026-04-20"},
+    )
+
+    assert response.status_code == 302
+    updated = todo_file.read_text(encoding="utf-8")
+    assert f"due:{datetime.now().strftime('%Y-%m-%d')}" in updated

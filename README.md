@@ -15,6 +15,7 @@ A lightweight, Python-based web application for managing tasks using the [todo.t
 - 🗑️ **Delete Confirmation Modal**: Task deletion uses an in-app modal with task preview instead of a browser confirm dialog
 - 🧭 **Focused Due Sections**: Overdue / Due Today / Due This Week are emphasized directly in the main list with section styling (without duplicate sidebar panels)
 - 🗓️ **Weekday Due Labels**: Due badges show weekday and full date for faster scanning
+- ⏱️ **Due Quick Actions**: Move overdue tasks to today, and move due-today tasks to tomorrow in one click
 - ⏳ **Waiting Workflow**: Track blocked tasks with `@waiting` and `waiting:<person>`
 - 🔗 **Task Links**: Support one or more `link:` fields and render them as clickable links below labels
 - ⚡ **Lightweight**: No database required—uses plain text files
@@ -326,6 +327,11 @@ Draft release notes link:https://example.com/spec link:docs.python.org +Platform
 - Link rendering:
   - `link:` entries are shown below label badges
   - each link is rendered on its own line and opens in a new browser tab
+- Due quick actions:
+  - overdue tasks can be shifted to today (`Today →`)
+  - due-today tasks can be shifted to tomorrow (`Tomorrow →`)
+- Metadata layout:
+  - due/waiting badges are shown on a separate row from project/context tags
 - Delete workflow:
   - delete actions open an in-app confirmation modal
   - the modal shows the task text before final confirmation
