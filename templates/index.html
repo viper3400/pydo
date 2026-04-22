@@ -162,22 +162,40 @@
 
                                 <!-- Tags -->
                                 {% if todo.projects or todo.contexts or todo.custom_fields.get('due') or todo.links or 'waiting' in todo.contexts or todo.custom_fields.get('waiting') %}
-                                    <div class="mt-1">
-                                        {% if 'waiting' in todo.contexts or todo.custom_fields.get('waiting') %}
-                                            <span class="badge bg-info text-white">⏳ Waiting{% if todo.custom_fields.get('waiting') %} for {{ todo.custom_fields.get('waiting') }}{% endif %}</span>
-                                        {% endif %}
-                                        {% if todo.custom_fields.get('due') %}
-                                            <span class="badge {% if todo.custom_fields.get('due') | is_overdue %}bg-danger{% else %}bg-secondary{% endif %} text-white">📅 {{ todo.custom_fields.get('due') | format_due_date }}</span>
-                                        {% endif %}
-                                        {% for project in todo.projects %}
-                                            <a href="{{ url_for('filter_project', project=project, scope=sidebar_scope) }}" class="badge bg-info text-dark text-decoration-none">+{{ project }}</a>
-                                        {% endfor %}
-                                        {% for context in todo.contexts %}
-                                            {% if context != 'waiting' %}
-                                                <a href="{{ url_for('filter_context', context=context, scope=sidebar_scope) }}" class="badge context-tag text-decoration-none">@{{ context }}</a>
+                                    {% if 'waiting' in todo.contexts or todo.custom_fields.get('waiting') or todo.custom_fields.get('due') %}
+                                        <div class="mt-1">
+                                            {% if 'waiting' in todo.contexts or todo.custom_fields.get('waiting') %}
+                                                <span class="badge bg-info text-white">⏳ Waiting{% if todo.custom_fields.get('waiting') %} for {{ todo.custom_fields.get('waiting') }}{% endif %}</span>
                                             {% endif %}
-                                        {% endfor %}
-                                    </div>
+                                            {% if todo.custom_fields.get('due') %}
+                                                <span class="badge {% if todo.custom_fields.get('due') | is_overdue %}bg-danger{% else %}bg-secondary{% endif %} text-white">📅 {{ todo.custom_fields.get('due') | format_due_date }}</span>
+                                                {% if todo.custom_fields.get('due') | is_overdue and not todo.complete %}
+                                                    <form method="POST" action="{{ url_for('set_due_today', index=loop.index0) }}" class="d-inline m-0 due-adjust-form">
+                                                        <input type="hidden" name="line" value="{{ todo.to_line() }}">
+                                                        <button type="submit" class="badge bg-light text-dark border" title="Move due date to today">Today →</button>
+                                                    </form>
+                                                {% endif %}
+                                                {% if todo.custom_fields.get('due') == today and not todo.complete %}
+                                                    <form method="POST" action="{{ url_for('postpone_due_tomorrow', index=loop.index0) }}" class="d-inline m-0 due-adjust-form">
+                                                        <input type="hidden" name="line" value="{{ todo.to_line() }}">
+                                                        <button type="submit" class="badge bg-light text-dark border" title="Move due date to tomorrow">Tomorrow →</button>
+                                                    </form>
+                                                {% endif %}
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                    {% if todo.projects or todo.contexts %}
+                                        <div class="mt-1">
+                                            {% for project in todo.projects %}
+                                                <a href="{{ url_for('filter_project', project=project, scope=sidebar_scope) }}" class="badge bg-info text-dark text-decoration-none">+{{ project }}</a>
+                                            {% endfor %}
+                                            {% for context in todo.contexts %}
+                                                {% if context != 'waiting' %}
+                                                    <a href="{{ url_for('filter_context', context=context, scope=sidebar_scope) }}" class="badge context-tag text-decoration-none">@{{ context }}</a>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
                                     {% if todo.links %}
                                         <div class="todo-link-list mt-1">
                                             {% for link_value in todo.links %}

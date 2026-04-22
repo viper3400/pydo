@@ -408,6 +408,44 @@ def edit_todo(index):
     return redirect(request.referrer or url_for("index"))
 
 
+@app.route("/tomorrow/<int:index>", methods=["POST"])
+def postpone_due_tomorrow(index):
+    """Move a task due date forward by one day."""
+    line = request.form.get("line", "").strip()
+    todos = get_todos()
+    updated = False
+
+    if line:
+        updated = todos.postpone_due_by_line(line, days=1)
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        if not updated:
+            return jsonify({"success": False, "error": "Task due date not found"}), 404
+        return jsonify({"success": True})
+
+    return redirect(request.referrer or url_for("index"))
+
+
+@app.route("/today/<int:index>", methods=["POST"])
+def set_due_today(index):
+    """Set a task due date to today."""
+    from datetime import datetime
+
+    line = request.form.get("line", "").strip()
+    todos = get_todos()
+    updated = False
+
+    if line:
+        updated = todos.set_due_by_line(line, datetime.now().strftime("%Y-%m-%d"))
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        if not updated:
+            return jsonify({"success": False, "error": "Task due date not found"}), 404
+        return jsonify({"success": True})
+
+    return redirect(request.referrer or url_for("index"))
+
+
 @app.route("/project/<project>")
 def filter_project(project):
     """Show todos for a specific project."""

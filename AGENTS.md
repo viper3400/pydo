@@ -17,9 +17,11 @@ Prefer minimal, reversible changes.
 - Keep business logic in `todolib.py`; keep controller flow in `app.py`.
 - Use stable task identity for mutations from filtered/sorted UI (line-based, not visible index).
 - Keep active-list sort/group behavior aligned between `app.py` and `templates/index.html`.
+- Keep task-row metadata layout stable: due/waiting row separate from project/context tags row.
 - Preserve current active section order:
   `Overdue -> Due Today -> Prioritized (no due) -> Due This Week -> Other Due Dates -> Other Tasks`.
 - Due+priority tasks must remain in due-date sections.
+- Due quick actions must be line-targeted and reliable across repeated clicks (`Today` for overdue, `Tomorrow` for due-today).
 - Hidden display metadata is allowlist-based (`due`, `waiting`, `link`); unknown `key:value` stays visible unless explicitly added.
 
 ## 3. Security

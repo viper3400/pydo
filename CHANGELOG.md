@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-04-22
+
+### Added
+- Due-date quick actions in task badges:
+  - `Today →` for overdue tasks
+  - `Tomorrow →` for tasks due today
+- Regression coverage for due-date shift helpers and related Flask routes.
+
+### Changed
+- Task metadata layout in list rows is now clearer:
+  - due/waiting badges on one line
+  - project/context tags on a separate line
+
+### Fixed
+- Repeated due-date quick actions now work without manual page refresh by handling these actions through AJAX and in-place content refresh.
+
 
 ## [0.6.0] - 2026-04-21
 

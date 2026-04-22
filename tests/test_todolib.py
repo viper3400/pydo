@@ -65,3 +65,29 @@ def test_parse_multiple_links_and_hide_them_in_display_text():
     display = todo.get_display_text()
     assert "link:https://example.com" not in display
     assert "link:docs.python.org" not in display
+
+
+def test_postpone_due_by_line_moves_due_date_forward(tmp_path):
+    todo_file = tmp_path / "todo.txt"
+    todo_file.write_text("Task due:2026-04-22 +Proj\n", encoding="utf-8")
+    todos = TodoList(todo_file)
+
+    updated = todos.postpone_due_by_line("Task due:2026-04-22 +Proj", days=1)
+
+    assert updated is True
+    stored = todo_file.read_text(encoding="utf-8")
+    assert "due:2026-04-23" in stored
+    assert "due:2026-04-22" not in stored
+
+
+def test_set_due_by_line_replaces_due_date(tmp_path):
+    todo_file = tmp_path / "todo.txt"
+    todo_file.write_text("Task due:2026-04-20 +Proj\n", encoding="utf-8")
+    todos = TodoList(todo_file)
+
+    updated = todos.set_due_by_line("Task due:2026-04-20 +Proj", due_date="2026-04-22")
+
+    assert updated is True
+    stored = todo_file.read_text(encoding="utf-8")
+    assert "due:2026-04-22" in stored
+    assert "due:2026-04-20" not in stored

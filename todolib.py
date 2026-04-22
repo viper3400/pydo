@@ -5,7 +5,7 @@ Follows the standard todo.txt specification: https://github.com/todotxt/todo.txt
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List
 
@@ -226,6 +226,69 @@ class TodoList:
                 todo.text = re.sub(r"^\([A-Z]\)\s+", "", new_text).strip()
                 if update_priority:
                     todo.priority = priority
+                self.save()
+                return True
+        return False
+
+    def postpone_due_by_line(self, line: str, days: int = 1) -> bool:
+        """Move an existing due date forward by N days for a specific task line."""
+        for todo in self.todos:
+            if todo.to_line() == line:
+                due_value = todo.custom_fields.get("due")
+                if not due_value:
+                    return False
+                try:
+                    next_due = (datetime.strptime(due_value, "%Y-%m-%d") + timedelta(days=days)).strftime("%Y-%m-%d")
+                except ValueError:
+                    return False
+
+                old_token = f"due:{due_value}"
+                new_token = f"due:{next_due}"
+                tokens = todo.text.split()
+                replaced = False
+                for i, token in enumerate(tokens):
+                    if token == old_token:
+                        tokens[i] = new_token
+                        replaced = True
+                        break
+
+                if not replaced:
+                    return False
+
+                todo.text = " ".join(tokens)
+                todo.custom_fields["due"] = next_due
+                self.save()
+                return True
+        return False
+
+    def set_due_by_line(self, line: str, due_date: str) -> bool:
+        """Set an existing due date to a specific YYYY-MM-DD value for a task line."""
+        try:
+            datetime.strptime(due_date, "%Y-%m-%d")
+        except ValueError:
+            return False
+
+        for todo in self.todos:
+            if todo.to_line() == line:
+                due_value = todo.custom_fields.get("due")
+                if not due_value:
+                    return False
+
+                old_token = f"due:{due_value}"
+                new_token = f"due:{due_date}"
+                tokens = todo.text.split()
+                replaced = False
+                for i, token in enumerate(tokens):
+                    if token == old_token:
+                        tokens[i] = new_token
+                        replaced = True
+                        break
+
+                if not replaced:
+                    return False
+
+                todo.text = " ".join(tokens)
+                todo.custom_fields["due"] = due_date
                 self.save()
                 return True
         return False
