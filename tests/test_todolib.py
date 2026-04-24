@@ -67,6 +67,53 @@ def test_parse_multiple_links_and_hide_them_in_display_text():
     assert "link:docs.python.org" not in display
 
 
+def test_completed_with_priority_round_trips_without_duplicate_completion_prefix():
+    line = "x 2026-04-22 (B) Prepare report due:2026-04-24 @office"
+    todo = Todo.from_line(line)
+
+    assert todo is not None
+    assert todo.complete is True
+    assert todo.priority == "B"
+    assert todo.to_line() == line
+
+
+def test_completed_with_priority_repeated_load_save_is_stable(tmp_path):
+    todo_file = tmp_path / "todo.txt"
+    original = "x 2026-04-22 (A) Send summary @PeopleMgmt due:2026-04-24"
+    todo_file.write_text(original + "\n", encoding="utf-8")
+
+    todos = TodoList(todo_file)
+    todos.save()
+
+    first_save = todo_file.read_text(encoding="utf-8").strip()
+    assert first_save == original
+
+    reloaded = TodoList(todo_file)
+    reloaded.save()
+
+    second_save = todo_file.read_text(encoding="utf-8").strip()
+    assert second_save == original
+
+
+def test_completed_without_priority_round_trip_stays_stable():
+    line = "x 2026-04-22 Finish paperwork due:2026-04-25"
+    todo = Todo.from_line(line)
+
+    assert todo is not None
+    assert todo.complete is True
+    assert todo.priority is None
+    assert todo.to_line() == line
+
+
+def test_active_without_completion_marker_remains_unchanged():
+    line = "(A) Prepare workshop due:2026-04-25 +SGF"
+    todo = Todo.from_line(line)
+
+    assert todo is not None
+    assert todo.complete is False
+    assert todo.to_line() == line
+
+
 def test_postpone_due_by_line_moves_due_date_forward(tmp_path):
     todo_file = tmp_path / "todo.txt"
     todo_file.write_text("Task due:2026-04-22 +Proj\n", encoding="utf-8")
