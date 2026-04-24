@@ -30,17 +30,33 @@ class Todo:
         """Strip only leading todo core metadata tokens from a line."""
         tokens = text.split()
         idx = 0
+        consumed_completion = False
+        consumed_priority = False
+        consumed_creation_date = False
 
-        if self.complete and idx < len(tokens) and tokens[idx] == "x":
-            idx += 1
-            if self.completion_date and idx < len(tokens) and tokens[idx] == self.completion_date:
+        # Strip only known leading metadata tokens, tolerating legacy reordered
+        # prefixes like "(A) x YYYY-MM-DD ..." for completed tasks.
+        while idx < len(tokens):
+            token = tokens[idx]
+
+            if self.complete and not consumed_completion and token == "x":
+                consumed_completion = True
                 idx += 1
+                if self.completion_date and idx < len(tokens) and tokens[idx] == self.completion_date:
+                    idx += 1
+                continue
 
-        if self.priority and idx < len(tokens) and tokens[idx] == f"({self.priority})":
-            idx += 1
+            if self.priority and not consumed_priority and token == f"({self.priority})":
+                consumed_priority = True
+                idx += 1
+                continue
 
-        if self.creation_date and idx < len(tokens) and tokens[idx] == self.creation_date:
-            idx += 1
+            if self.creation_date and not consumed_creation_date and token == self.creation_date:
+                consumed_creation_date = True
+                idx += 1
+                continue
+
+            break
 
         return " ".join(tokens[idx:])
 
@@ -89,12 +105,18 @@ class Todo:
         todo.custom_fields = {k: v for k, v in custom_fields}
         todo.links = [value for key, value in custom_fields if key.lower() == "link"]
 
-        # Update text to clean version
-        todo.text = line if not todo.complete else f"x {todo.completion_date or ''} {line}".strip()
+        # Store parsed text in canonical core-metadata order.
+        text_parts = []
+        if todo.complete:
+            text_parts.append("x")
+            if todo.completion_date:
+                text_parts.append(todo.completion_date)
         if todo.priority:
-            todo.text = f"({todo.priority}) {todo.text}"
-        if todo.creation_date and not todo.complete:
-            todo.text = f"{todo.text} {todo.creation_date}".replace(f" {todo.creation_date}", "", 1)
+            text_parts.append(f"({todo.priority})")
+        if todo.creation_date:
+            text_parts.append(todo.creation_date)
+        text_parts.append(line)
+        todo.text = " ".join(part for part in text_parts if part)
 
         return todo
 
