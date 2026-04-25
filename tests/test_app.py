@@ -117,6 +117,33 @@ def test_active_view_sections_show_prioritized_before_due_this_week(client, test
     assert "📅 Due This Week (2)" in html
 
 
+def test_duration_contexts_are_split_from_main_context_panel(client, test_paths):
+    _, todo_file = test_paths
+    todo_file.write_text(
+        "\n".join(
+            [
+                "Call customer @phone @30min",
+                "Review contract @120 min",
+            ]
+        ) + "\n",
+        encoding="utf-8",
+    )
+
+    response = client.get("/")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    contexts_panel = html[html.find("🏷️ Contexts"):html.find("⏱️ Duration Context")]
+    duration_panel = html[html.find("⏱️ Duration Context"):html.find("⚡ Priorities")]
+
+    assert "@phone" in contexts_panel
+    assert "@30min" not in contexts_panel
+    assert "@120" not in contexts_panel
+    assert "@30min" in duration_panel
+    assert "@120" in duration_panel
+    assert "duration-context-tag" in html
+
+
 def test_edit_route_ajax_updates_task_without_redirect(client, test_paths):
     _, todo_file = test_paths
     todo_file.write_text("(B) Original task\n", encoding="utf-8")

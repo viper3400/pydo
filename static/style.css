@@ -176,6 +176,11 @@ body {
     color: #fff !important;
 }
 
+.badge.duration-context-tag {
+    background-color: #9814fd !important;
+    color: #e2d7fa !important;
+}
+
 .todo-link-item {
     font-size: 0.88rem;
     color: #0a58ca;
