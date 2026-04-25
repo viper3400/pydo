@@ -12,6 +12,12 @@ from typing import Optional, List
 HIDDEN_DISPLAY_CUSTOM_FIELDS = {"due", "waiting", "link"}
 
 
+def is_duration_context(context: str) -> bool:
+    """Return whether a context tag represents a duration estimate."""
+    normalized = context.strip().lower()
+    return bool(re.fullmatch(r"\d+\s*min", normalized) or re.fullmatch(r"\d+", normalized))
+
+
 @dataclass
 class Todo:
     """Represents a single todo item."""

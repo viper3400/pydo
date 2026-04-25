@@ -1,4 +1,4 @@
-from todolib import Todo, TodoList
+from todolib import Todo, TodoList, is_duration_context
 
 
 def test_parse_priority_project_context_custom_fields():
@@ -10,6 +10,14 @@ def test_parse_priority_project_context_custom_fields():
     assert "phone" in todo.contexts
     assert todo.custom_fields.get("due") == "2026-04-20"
     assert todo.custom_fields.get("waiting") == "alice"
+
+
+def test_duration_context_detection():
+    assert is_duration_context("5min")
+    assert is_duration_context("30min")
+    assert is_duration_context("120")
+    assert not is_duration_context("phone")
+    assert not is_duration_context("bug30")
 
 
 def test_todolist_add_toggle_remove(tmp_path):

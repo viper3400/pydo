@@ -11,7 +11,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, s
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
 
-from todolib import TodoList
+from todolib import TodoList, is_duration_context
 
 # Configuration
 BASE_DIR = Path(__file__).parent
@@ -268,7 +268,15 @@ def get_template_context(todos, items, filter_by="active", filter_value=None, si
     scoped_items = _get_items_for_scope(todos, sidebar_scope)
     normalized_scope = _normalize_sidebar_scope(sidebar_scope)
     scoped_projects = sorted({project for todo in scoped_items for project in todo.projects})
-    scoped_contexts = sorted({context for todo in scoped_items for context in todo.contexts})
+    scoped_context_values = {context for todo in scoped_items for context in todo.contexts}
+    scoped_contexts = sorted(
+        context for context in scoped_context_values
+        if not is_duration_context(context)
+    )
+    scoped_duration_contexts = sorted(
+        context for context in scoped_context_values
+        if is_duration_context(context)
+    )
     scoped_priorities = sorted({todo.priority for todo in scoped_items if todo.priority})
     waiting_tasks = [
         todo for todo in scoped_items
@@ -295,6 +303,7 @@ def get_template_context(todos, items, filter_by="active", filter_value=None, si
         "today": today,
         "projects": scoped_projects,
         "contexts": scoped_contexts,
+        "duration_contexts": scoped_duration_contexts,
         "priorities": scoped_priorities,
         "overdue": todos.get_overdue(),
         "due_today": due_today,
@@ -531,6 +540,12 @@ def count_with_project(todos, project):
 def count_with_context(todos, context):
     """Count todos that have a specific context."""
     return len([t for t in todos if context in t.contexts])
+
+
+@app.template_filter('is_duration_context')
+def is_duration_context_filter(context):
+    """Return whether a context tag should be styled as a duration."""
+    return is_duration_context(context)
 
 
 @app.template_filter('count_waiting_for')

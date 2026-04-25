@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-04-25
+
+### Added
+- Duration context tags such as `@5min`, `@30min`, and numeric estimates like `@120` now use a distinct badge color.
+- Duration contexts now appear in a dedicated "Duration Context" sidebar panel instead of the main context panel.
+- Regression coverage for duration context detection and sidebar grouping.
+
 ## [0.7.1] - 2026-04-25
 
 ### Fixed

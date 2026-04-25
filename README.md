@@ -6,7 +6,7 @@ A lightweight, Python-based web application for managing tasks using the [todo.t
 
 - ✅ **Full todo.txt Support**: Parse and manage tasks in standard todo.txt format
 - 📝 **Simple Web Interface**: Clean, responsive UI built with Bootstrap 5
-- 🏷️ **Organize Tasks**: Support for priorities (A-Z), projects (+ProjectName), and contexts (@context)
+- 🏷️ **Organize Tasks**: Support for priorities (A-Z), projects (+ProjectName), contexts (@context), and duration contexts like `@30min`
 - 📊 **Smart Filtering**: View tasks by status, project, context, or priority
 - 🧭 **Scoped Sidebar Filters**: Sidebar categories follow the active tab (`Active` vs `Completed`) and do not mix lists
 - 🔎 **Visible Active Filter**: Current filter is shown above the task list, with a quick clear action
@@ -288,6 +288,9 @@ x 2026-04-16 2026-04-15 Sent report +ProjectY
 **Contexts**: `@context` anywhere in the task
 - Example: `Call +john @phone`
 
+**Duration Contexts**: `@5min`, `@30min`, or numeric estimate contexts such as `@120`
+- These are shown with a distinct tag color and grouped in the "Duration Context" sidebar panel.
+
 **Custom Fields**: `key:value` anywhere in the task
 - Example: `Fix bug due:2026-04-20 @bug`
 
@@ -321,6 +324,7 @@ Draft release notes link:https://example.com/spec link:docs.python.org +Platform
 - Scope-aware sidebar filtering:
   - Sidebar categories are scoped to the current tab (`Active` or `Completed`)
   - Project/context/priority clicks stay in that scope
+  - Duration contexts are separated from the main context panel
 - Active filter state:
   - The current filter is shown above the task list
   - A clear action returns to the current scope list
