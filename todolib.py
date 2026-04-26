@@ -98,16 +98,16 @@ class Todo:
             todo.creation_date = date_match.group(1)
             line = line[len(date_match.group(0)):].strip()
 
-        # Extract projects (+ProjectName)
-        projects = re.findall(r"\+(\S+)", line)
+        # Extract token-level projects (+ProjectName)
+        projects = re.findall(r"(?<!\S)\+(\S+)", line)
         todo.projects = projects
 
-        # Extract contexts (@context), but skip due markers like @due:YYYY-MM-DD
-        contexts = re.findall(r"@(\S+)", line)
+        # Extract token-level contexts (@context), but skip due markers like @due:YYYY-MM-DD
+        contexts = re.findall(r"(?<!\S)@(\S+)", line)
         todo.contexts = [context for context in contexts if not context.lower().startswith("due:")]
 
-        # Extract custom fields (key:value)
-        custom_fields = re.findall(r"(\w+):(\S+)", line)
+        # Extract token-level custom fields (key:value)
+        custom_fields = re.findall(r"(?<!\S)(\w+):(\S+)", line)
         todo.custom_fields = {k: v for k, v in custom_fields}
         todo.links = [value for key, value in custom_fields if key.lower() == "link"]
 

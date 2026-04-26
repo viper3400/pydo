@@ -75,6 +75,22 @@ def test_parse_multiple_links_and_hide_them_in_display_text():
     assert "link:docs.python.org" not in display
 
 
+def test_plus_inside_link_is_not_parsed_as_project():
+    todo = Todo.from_line(
+        "Review board link:https://confluence.cgm.ag/spaces/CHClientSolution/pages/2188031700/Program+Board+2026-04-27 +Work"
+    )
+
+    assert todo is not None
+    assert todo.links == [
+        "https://confluence.cgm.ag/spaces/CHClientSolution/pages/2188031700/Program+Board+2026-04-27"
+    ]
+    assert todo.projects == ["Work"]
+
+    display = todo.get_display_text()
+    assert "Program+Board+2026-04-27" not in display
+    assert "+Work" not in display
+
+
 def test_completed_with_priority_round_trips_without_duplicate_completion_prefix():
     line = "x 2026-04-22 (B) Prepare report due:2026-04-24 @office"
     todo = Todo.from_line(line)
