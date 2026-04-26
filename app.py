@@ -259,6 +259,47 @@ def _get_items_for_scope(todos, scope: str):
     return todos.get_active()
 
 
+def build_project_hierarchy(items):
+    """Build grouped project sidebar data for the given task scope."""
+    groups = {}
+    ungrouped_projects = set()
+
+    for todo in items:
+        if todo.main_projects:
+            for main_project in todo.main_projects:
+                group = groups.setdefault(
+                    main_project,
+                    {
+                        "name": main_project,
+                        "count": 0,
+                        "projects": {},
+                        "no_subproject_count": 0,
+                    },
+                )
+                group["count"] += 1
+                if todo.projects:
+                    for project in todo.projects:
+                        group["projects"][project] = group["projects"].get(project, 0) + 1
+                else:
+                    group["no_subproject_count"] += 1
+        else:
+            ungrouped_projects.update(todo.projects)
+
+    return {
+        "groups": [
+            {
+                **group,
+                "projects": [
+                    {"name": project, "count": count}
+                    for project, count in sorted(group["projects"].items())
+                ],
+            }
+            for _, group in sorted(groups.items())
+        ],
+        "ungrouped_projects": sorted(ungrouped_projects),
+    }
+
+
 def get_template_context(todos, items, filter_by="active", filter_value=None, sidebar_scope="active"):
     """Build the template context with all necessary data."""
     from datetime import datetime
@@ -267,7 +308,7 @@ def get_template_context(todos, items, filter_by="active", filter_value=None, si
     active_items = todos.get_active()
     scoped_items = _get_items_for_scope(todos, sidebar_scope)
     normalized_scope = _normalize_sidebar_scope(sidebar_scope)
-    scoped_projects = sorted({project for todo in scoped_items for project in todo.projects})
+    project_hierarchy = build_project_hierarchy(scoped_items)
     scoped_context_values = {context for todo in scoped_items for context in todo.contexts}
     scoped_contexts = sorted(
         context for context in scoped_context_values
@@ -301,7 +342,8 @@ def get_template_context(todos, items, filter_by="active", filter_value=None, si
         "sidebar_todos": scoped_items,
         "sidebar_scope": normalized_scope,
         "today": today,
-        "projects": scoped_projects,
+        "project_hierarchy": project_hierarchy,
+        "projects": project_hierarchy["ungrouped_projects"],
         "contexts": scoped_contexts,
         "duration_contexts": scoped_duration_contexts,
         "priorities": scoped_priorities,
@@ -465,6 +507,63 @@ def filter_project(project):
     return render_template("index.html", **context)
 
 
+@app.route("/main-project/<main_project>")
+def filter_main_project(main_project):
+    """Show todos for a specific main project."""
+    todos = get_todos()
+    sidebar_scope = request.args.get("scope", "active")
+    items = [
+        t for t in _get_items_for_scope(todos, sidebar_scope)
+        if main_project in t.main_projects
+    ]
+    context = get_template_context(
+        todos,
+        items,
+        "main_project",
+        main_project,
+        sidebar_scope=sidebar_scope,
+    )
+    return render_template("index.html", **context)
+
+
+@app.route("/main-project/<main_project>/project/<project>")
+def filter_main_project_child(main_project, project):
+    """Show todos for a project within a specific main project."""
+    todos = get_todos()
+    sidebar_scope = request.args.get("scope", "active")
+    items = [
+        t for t in _get_items_for_scope(todos, sidebar_scope)
+        if main_project in t.main_projects and project in t.projects
+    ]
+    context = get_template_context(
+        todos,
+        items,
+        "main_project_child",
+        {"main_project": main_project, "project": project},
+        sidebar_scope=sidebar_scope,
+    )
+    return render_template("index.html", **context)
+
+
+@app.route("/main-project/<main_project>/no-subproject")
+def filter_main_project_no_subproject(main_project):
+    """Show todos directly under a main project with no child project."""
+    todos = get_todos()
+    sidebar_scope = request.args.get("scope", "active")
+    items = [
+        t for t in _get_items_for_scope(todos, sidebar_scope)
+        if main_project in t.main_projects and not t.projects
+    ]
+    context = get_template_context(
+        todos,
+        items,
+        "main_project_no_subproject",
+        main_project,
+        sidebar_scope=sidebar_scope,
+    )
+    return render_template("index.html", **context)
+
+
 @app.route("/context/<context>")
 def filter_context(context):
     """Show todos for a specific context."""
@@ -534,6 +633,12 @@ def filter_waiting_for(person):
 def count_with_project(todos, project):
     """Count todos that have a specific project."""
     return len([t for t in todos if project in t.projects])
+
+
+@app.template_filter('count_with_main_project')
+def count_with_main_project(todos, main_project):
+    """Count todos that have a specific main project."""
+    return len([t for t in todos if main_project in t.main_projects])
 
 
 @app.template_filter('count_with_context')

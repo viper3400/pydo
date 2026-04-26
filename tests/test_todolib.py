@@ -12,6 +12,43 @@ def test_parse_priority_project_context_custom_fields():
     assert todo.custom_fields.get("waiting") == "alice"
 
 
+def test_parse_main_project_without_creating_normal_project():
+    line = "Build rollout ++ClientA +Migration"
+    todo = Todo.from_line(line)
+
+    assert todo is not None
+    assert todo.main_projects == ["ClientA"]
+    assert todo.projects == ["Migration"]
+    assert todo.to_line() == line
+
+    display = todo.get_display_text()
+    assert "++ClientA" not in display
+    assert "+Migration" not in display
+    assert display == "Build rollout"
+
+
+def test_main_project_without_child_project_is_supported():
+    todo = Todo.from_line("Review roadmap ++ClientA")
+
+    assert todo is not None
+    assert todo.main_projects == ["ClientA"]
+    assert todo.projects == []
+    assert todo.get_display_text() == "Review roadmap"
+
+
+def test_plus_inside_link_is_not_parsed_as_project():
+    todo = Todo.from_line(
+        "Review board link:https://confluence.cgm.ag/spaces/CHClientSolution/pages/2188031700/Program+Board+2026-04-27 +Work"
+    )
+
+    assert todo is not None
+    assert todo.links == [
+        "https://confluence.cgm.ag/spaces/CHClientSolution/pages/2188031700/Program+Board+2026-04-27"
+    ]
+    assert todo.projects == ["Work"]
+    assert todo.main_projects == []
+
+
 def test_duration_context_detection():
     assert is_duration_context("5min")
     assert is_duration_context("30min")

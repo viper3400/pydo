@@ -6,8 +6,8 @@ A lightweight, Python-based web application for managing tasks using the [todo.t
 
 - ✅ **Full todo.txt Support**: Parse and manage tasks in standard todo.txt format
 - 📝 **Simple Web Interface**: Clean, responsive UI built with Bootstrap 5
-- 🏷️ **Organize Tasks**: Support for priorities (A-Z), projects (+ProjectName), contexts (@context), and duration contexts like `@30min`
-- 📊 **Smart Filtering**: View tasks by status, project, context, or priority
+- 🏷️ **Organize Tasks**: Support for priorities (A-Z), main projects (++MainProject), projects (+ProjectName), contexts (@context), and duration contexts like `@30min`
+- 📊 **Smart Filtering**: View tasks by status, main project, project, context, or priority
 - 🧭 **Scoped Sidebar Filters**: Sidebar categories follow the active tab (`Active` vs `Completed`) and do not mix lists
 - 🔎 **Visible Active Filter**: Current filter is shown above the task list, with a quick clear action
 - ✏️ **Inline Editing Workflow**: Only one inline edit can be active at a time; if unsaved changes exist, a modal shows marked text and priority changes before switching
@@ -284,6 +284,12 @@ x 2026-04-16 2026-04-15 Sent report +ProjectY
 
 **Projects**: `+ProjectName` anywhere in the task
 - Example: `Work on +ProjectX design`
+
+**Main Projects**: `++MainProject` anywhere in the task
+- Example: `Plan migration ++ClientA +Migration`
+- Main projects group child `+ProjectName` tags in the sidebar.
+- Clicking `++MainProject` shows all tasks in that main project.
+- Tasks with `++MainProject` and no child `+ProjectName` appear under "No subproject".
 
 **Contexts**: `@context` anywhere in the task
 - Example: `Call +john @phone`
