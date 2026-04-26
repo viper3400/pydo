@@ -1,0 +1,15 @@
+name: Clean wokflows
+on:
+    workflow_dispatch:
+    schedule:
+      - cron: "0 0 * * *"
+jobs:
+    delete_runs:
+        runs-on: ubuntu-latest
+        if: ${{ always() }}
+        steps:
+          - name: Delete workflow runs
+            uses: dmvict/clean-workflow-runs@v1.2.2
+            with:
+              token: ${{ secrets.DELETE_RUNS }}
+              save_period: 30
