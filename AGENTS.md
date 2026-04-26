@@ -18,6 +18,12 @@ Prefer minimal, reversible changes.
 - Use stable task identity for mutations from filtered/sorted UI (line-based, not visible index).
 - Keep active-list sort/group behavior aligned between `app.py` and `templates/index.html`.
 - Keep task-row metadata layout stable: due/waiting row separate from project/context tags row.
+- Preserve project hierarchy semantics:
+  - `++MainProject` is parsed as a main project, not as a normal `+Project`.
+  - `+Project` remains the normal project tag.
+  - Sidebar main-project filters aggregate all tasks tagged with `++MainProject`.
+  - Main-project child filters require both `++MainProject` and `+Project`.
+  - Main-project tasks without child projects remain available under "No subproject".
 - Preserve current active section order:
   `Overdue -> Due Today -> Prioritized (no due) -> Due This Week -> Other Due Dates -> Other Tasks`.
 - Due+priority tasks must remain in due-date sections.
@@ -63,6 +69,6 @@ Prefer minimal, reversible changes.
 
 ## 9. Governance Sync
 
-- If `.github/workflows/*` changes, update `AGENTS.md` in the same change.
+- If governance-relevant files change (`app.py`, `todolib.py`, `requirements.txt`, `run.sh`, or `.github/workflows/*`), update `AGENTS.md` in the same change.
 - If intentionally skipped, include `[agents-skip]` in PR title/body with a short reason.
 - PRs opened by `dependabot[bot]` are exempt from README/AGENTS guard requirements in `.github/workflows/readme-guard.yml`.

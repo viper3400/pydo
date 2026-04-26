@@ -21,7 +21,7 @@
                     <button type="submit" class="btn btn-primary">Add</button>
                 </form>
                 <small class="text-muted d-block mt-2">
-                    💡 Tip: Use <code>+ProjectName</code> for projects and <code>@context</code> for contexts
+                    💡 Tip: Use <code>++MainProject</code> for main projects, <code>+ProjectName</code> for projects, and <code>@context</code> for contexts
                 </small>
             </div>
         </div>
@@ -46,6 +46,14 @@
                     <strong>Current filter:</strong>
                     {% if filter_by == 'project' %}
                         Project <span class="badge bg-info text-dark">+{{ filter_value }}</span>
+                    {% elif filter_by == 'main_project' %}
+                        Main project <span class="badge main-project-tag">++{{ filter_value }}</span>
+                    {% elif filter_by == 'main_project_child' %}
+                        Main project <span class="badge main-project-tag">++{{ filter_value.main_project }}</span>
+                        Project <span class="badge bg-info text-dark">+{{ filter_value.project }}</span>
+                    {% elif filter_by == 'main_project_no_subproject' %}
+                        Main project <span class="badge main-project-tag">++{{ filter_value }}</span>
+                        <span class="badge bg-light text-dark border">No subproject</span>
                     {% elif filter_by == 'context' %}
                         Context <span class="badge {% if filter_value | is_duration_context %}duration-context-tag{% else %}context-tag{% endif %}">@{{ filter_value }}</span>
                     {% elif filter_by == 'priority' %}
@@ -161,7 +169,7 @@
                                 {% endif %}
 
                                 <!-- Tags -->
-                                {% if todo.projects or todo.contexts or todo.custom_fields.get('due') or todo.links or 'waiting' in todo.contexts or todo.custom_fields.get('waiting') %}
+                                {% if todo.main_projects or todo.projects or todo.contexts or todo.custom_fields.get('due') or todo.links or 'waiting' in todo.contexts or todo.custom_fields.get('waiting') %}
                                     {% if 'waiting' in todo.contexts or todo.custom_fields.get('waiting') or todo.custom_fields.get('due') %}
                                         <div class="mt-1">
                                             {% if 'waiting' in todo.contexts or todo.custom_fields.get('waiting') %}
@@ -184,8 +192,11 @@
                                             {% endif %}
                                         </div>
                                     {% endif %}
-                                    {% if todo.projects or todo.contexts %}
+                                    {% if todo.main_projects or todo.projects or todo.contexts %}
                                         <div class="mt-1">
+                                            {% for main_project in todo.main_projects %}
+                                                <a href="{{ url_for('filter_main_project', main_project=main_project, scope=sidebar_scope) }}" class="badge main-project-tag text-decoration-none">++{{ main_project }}</a>
+                                            {% endfor %}
                                             {% for project in todo.projects %}
                                                 <a href="{{ url_for('filter_project', project=project, scope=sidebar_scope) }}" class="badge bg-info text-dark text-decoration-none">+{{ project }}</a>
                                             {% endfor %}
@@ -266,12 +277,30 @@
         {% endif %}
 
         <!-- Projects -->
-        {% if projects %}
+        {% if project_hierarchy["groups"] or projects %}
             <div class="card mb-3 shadow-sm">
                 <div class="card-header bg-light">
                     <h6 class="mb-0">📌 Projects</h6>
                 </div>
                 <div class="list-group list-group-flush">
+                    {% for group in project_hierarchy["groups"] %}
+                        <a href="{{ url_for('filter_main_project', main_project=group.name, scope=sidebar_scope) }}" class="list-group-item list-group-item-action d-flex justify-content-between project-main-row {% if filter_by == 'main_project' and filter_value == group.name %}active{% endif %}">
+                            <span>++{{ group.name }}</span>
+                            <span class="badge main-project-count rounded-pill">{{ group.count }}</span>
+                        </a>
+                        {% for project in group.projects %}
+                            <a href="{{ url_for('filter_main_project_child', main_project=group.name, project=project.name, scope=sidebar_scope) }}" class="list-group-item list-group-item-action d-flex justify-content-between project-child-row {% if filter_by == 'main_project_child' and filter_value.main_project == group.name and filter_value.project == project.name %}active{% endif %}">
+                                <span><span class="project-child-marker">↳</span> +{{ project.name }}</span>
+                                <span class="badge bg-info rounded-pill">{{ project.count }}</span>
+                            </a>
+                        {% endfor %}
+                        {% if group.no_subproject_count %}
+                            <a href="{{ url_for('filter_main_project_no_subproject', main_project=group.name, scope=sidebar_scope) }}" class="list-group-item list-group-item-action d-flex justify-content-between project-child-row {% if filter_by == 'main_project_no_subproject' and filter_value == group.name %}active{% endif %}">
+                                <span><span class="project-child-marker">↳</span> No subproject</span>
+                                <span class="badge bg-secondary rounded-pill">{{ group.no_subproject_count }}</span>
+                            </a>
+                        {% endif %}
+                    {% endfor %}
                     {% for project in projects %}
                         <a href="{{ url_for('filter_project', project=project, scope=sidebar_scope) }}" class="list-group-item list-group-item-action d-flex justify-content-between {% if filter_by == 'project' and filter_value == project %}active{% endif %}">
                             <span>+{{ project }}</span>

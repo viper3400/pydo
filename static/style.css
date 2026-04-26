@@ -181,6 +181,39 @@ body {
     color: #e2d7fa !important;
 }
 
+.badge.main-project-tag,
+.badge.main-project-count {
+    background-color: #495057 !important;
+    color: #fff !important;
+}
+
+.project-main-row {
+    background-color: #f1f3f5;
+    border-left: 0.25rem solid #495057;
+    font-weight: 600;
+}
+
+.project-main-row:hover {
+    background-color: #e9ecef;
+}
+
+.project-child-row {
+    border-left: 0.25rem solid #ced4da;
+    padding-left: 2.25rem;
+    font-size: 0.94rem;
+}
+
+.project-child-row:not(.active) {
+    background-color: #fbfcfd;
+    color: #495057;
+}
+
+.project-child-marker {
+    color: #6c757d;
+    font-weight: 600;
+    margin-right: 0.25rem;
+}
+
 .todo-link-item {
     font-size: 0.88rem;
     color: #0a58ca;

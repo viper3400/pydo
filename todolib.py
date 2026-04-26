@@ -27,6 +27,7 @@ class Todo:
     priority: Optional[str] = None
     creation_date: Optional[str] = None
     completion_date: Optional[str] = None
+    main_projects: List[str] = field(default_factory=list)
     projects: List[str] = field(default_factory=list)
     contexts: List[str] = field(default_factory=list)
     custom_fields: dict = field(default_factory=dict)
@@ -98,8 +99,12 @@ class Todo:
             todo.creation_date = date_match.group(1)
             line = line[len(date_match.group(0)):].strip()
 
-        # Extract token-level projects (+ProjectName)
-        projects = re.findall(r"(?<!\S)\+(\S+)", line)
+        # Extract token-level main projects (++MainProject)
+        main_projects = re.findall(r"(?<!\S)\+\+(\S+)", line)
+        todo.main_projects = main_projects
+
+        # Extract token-level projects (+ProjectName), excluding ++MainProject
+        projects = re.findall(r"(?<!\S)\+(?!\+)(\S+)", line)
         todo.projects = projects
 
         # Extract token-level contexts (@context), but skip due markers like @due:YYYY-MM-DD
@@ -153,7 +158,8 @@ class Todo:
 
         # Hide todo.txt-style metadata in display mode using exact token matches
         # from parsed metadata, so plain words in the task text are not removed.
-        metadata_tokens = {f"+{project}" for project in self.projects}
+        metadata_tokens = {f"++{project}" for project in self.main_projects}
+        metadata_tokens.update(f"+{project}" for project in self.projects)
         metadata_tokens.update(f"@{context}" for context in self.contexts)
         metadata_tokens.update(
             f"{key}:{value}" if value else f"{key}:"

@@ -144,6 +144,85 @@ def test_duration_contexts_are_split_from_main_context_panel(client, test_paths)
     assert "duration-context-tag" in html
 
 
+def test_project_sidebar_groups_main_projects(client, test_paths):
+    _, todo_file = test_paths
+    todo_file.write_text(
+        "\n".join(
+            [
+                "Plan migration ++ClientA +Migration",
+                "Handle support ++ClientA +Support",
+                "Review roadmap ++ClientA",
+                "Buy milk +Personal",
+            ]
+        ) + "\n",
+        encoding="utf-8",
+    )
+
+    response = client.get("/")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "++ClientA" in html
+    assert "main-project/ClientA" in html
+    assert "main-project/ClientA/project/Migration" in html
+    assert "main-project/ClientA/project/Support" in html
+    assert "main-project/ClientA/no-subproject" in html
+    assert "No subproject" in html
+    assert "+Personal" in html
+
+
+def test_main_project_filters_include_expected_tasks(client, test_paths):
+    _, todo_file = test_paths
+    todo_file.write_text(
+        "\n".join(
+            [
+                "Plan migration ++ClientA +Migration",
+                "Handle support ++ClientA +Support",
+                "Review roadmap ++ClientA",
+                "Buy milk +Personal",
+            ]
+        ) + "\n",
+        encoding="utf-8",
+    )
+
+    main_response = client.get("/main-project/ClientA")
+    main_html = main_response.get_data(as_text=True)
+    assert main_response.status_code == 200
+    assert "Plan migration" in main_html
+    assert "Handle support" in main_html
+    assert "Review roadmap" in main_html
+    assert "Buy milk" not in main_html
+
+    child_response = client.get("/main-project/ClientA/project/Migration")
+    child_html = child_response.get_data(as_text=True)
+    assert child_response.status_code == 200
+    assert "Plan migration" in child_html
+    assert "Handle support" not in child_html
+    assert "Review roadmap" not in child_html
+
+    no_child_response = client.get("/main-project/ClientA/no-subproject")
+    no_child_html = no_child_response.get_data(as_text=True)
+    assert no_child_response.status_code == 200
+    assert "Review roadmap" in no_child_html
+    assert "Plan migration" not in no_child_html
+    assert "Handle support" not in no_child_html
+
+
+def test_existing_flat_project_filter_still_works(client, test_paths):
+    _, todo_file = test_paths
+    todo_file.write_text(
+        "Plan migration ++ClientA +Migration\nBuy milk +Personal\n",
+        encoding="utf-8",
+    )
+
+    response = client.get("/project/Personal")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Buy milk" in html
+    assert "Plan migration" not in html
+
+
 def test_edit_route_ajax_updates_task_without_redirect(client, test_paths):
     _, todo_file = test_paths
     todo_file.write_text("(B) Original task\n", encoding="utf-8")
