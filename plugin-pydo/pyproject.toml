@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "flask-plugin-pydo"
+version = "0.1.0"
+description = "PyDo todo.txt plugin for flask-plugin-platform."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+  { name = "Jan" }
+]
+dependencies = [
+  "Flask>=3.0,<4.0",
+  "Werkzeug>=3.0,<4.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.0",
+]
+
+[project.entry-points."flask_plugin_platform.plugins"]
+pydo = "flask_plugin_pydo.plugin:PLUGIN"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/flask_plugin_pydo"]
+
+[tool.pytest.ini_options]
+testpaths = ["src/flask_plugin_pydo/tests"]

@@ -57,6 +57,7 @@ Prefer minimal, reversible changes.
 - Do not introduce heavy new dependencies unless necessary.
 - Keep deployment/auth docs copy-paste friendly.
 - Keep reverse-proxy compatibility for path-prefix deployments (for example `/pydo`) by preserving forwarded-prefix behavior.
+- Plugin package releases use tags named `plugin-pydo-vX.Y.Z` and build from `plugin-pydo/`.
 
 ## 7. Commits
 

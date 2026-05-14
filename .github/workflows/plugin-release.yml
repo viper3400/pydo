@@ -1,0 +1,61 @@
+name: Release Plugin Package
+
+on:
+  push:
+    tags:
+      - "plugin-pydo-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Verify tag matches plugin version
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import tomllib
+
+          ref_name = os.environ["GITHUB_REF_NAME"]
+          pyproject = pathlib.Path("plugin-pydo/pyproject.toml")
+          version = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+          expected = f"plugin-pydo-v{version}"
+
+          if ref_name != expected:
+              raise SystemExit(
+                  f"Tag {ref_name!r} does not match plugin-pydo version {version!r}. "
+                  f"Expected {expected!r}."
+              )
+          PY
+
+      - name: Build plugin distribution artifacts
+        working-directory: plugin-pydo
+        run: uv build
+
+      - name: Verify plugin distribution metadata
+        working-directory: plugin-pydo
+        run: uvx twine check dist/*.whl dist/*.tar.gz
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            plugin-pydo/dist/*.whl \
+            plugin-pydo/dist/*.tar.gz \
+            --verify-tag \
+            --generate-notes \
+            --title "$GITHUB_REF_NAME"
