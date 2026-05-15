@@ -4,19 +4,21 @@ Guidance for AI/code agents working in this repository.
 
 ## 1. Scope
 
-- Single-user Flask app with file-backed state (`data/todo.txt`).
+- Flask plugin package with file-backed todo state.
 - Core split:
-  - `app.py`: routing, request handling, auth/session.
-  - `todolib.py`: parsing, serialization, query/update logic.
-  - `templates/`, `static/`: presentation and client behavior.
+  - `src/flask_plugin_pydo/routes.py`: blueprint routes and request handling.
+  - `src/flask_plugin_pydo/services.py`: runtime service layer and todo operations.
+  - `src/flask_plugin_pydo/models.py`: parsing and serialization models.
+  - `src/flask_plugin_pydo/forms.py`: request parsing helpers.
+  - `src/flask_plugin_pydo/templates/`, `src/flask_plugin_pydo/static/`: plugin presentation assets.
 
 Prefer minimal, reversible changes.
 
 ## 2. Architecture Contracts
 
-- Keep business logic in `todolib.py`; keep controller flow in `app.py`.
+- Keep controller flow in `routes.py`; keep business logic in `services.py` and parsing/model rules in `models.py`.
 - Use stable task identity for mutations from filtered/sorted UI (line-based, not visible index).
-- Keep active-list sort/group behavior aligned between `app.py` and `templates/index.html`.
+- Keep active-list sort/group behavior aligned between `services.py` and `templates/pydo/index.html`.
 - Keep task-row metadata layout stable: due/waiting row separate from project/context tags row.
 - Preserve project hierarchy semantics:
   - `++MainProject` is parsed as a main project, not as a normal `+Project`.
@@ -33,31 +35,37 @@ Prefer minimal, reversible changes.
 ## 3. Security
 
 - Never commit secrets or plaintext passwords.
-- Auth/session settings are env-driven:
+- Preserve plugin auth/session compatibility:
   - `PYTODO_PASSWORD` or `PYTODO_PASSWORD_HASH`
   - `SECRET_KEY`
   - `PYTODO_SESSION_COOKIE_NAME` (defaults to `pytodo_session`)
-- Preserve login gate, failed-attempt accounting, and lock-file flow (`data/.auth_blocked`) unless explicitly requested otherwise.
+- Preserve login gate, failed-attempt accounting, and lock-file flow unless explicitly requested otherwise.
+- Plugin host config keys include:
+  - `PYDO_TODO_FILE`
+  - `PYDO_DATA_DIR`
+  - `PYDO_VERSION`
+  - `PYDO_NOW_PROVIDER`
+  - `PYDO_MAX_LOGIN_ATTEMPTS`
 
 ## 4. Data Safety
 
-- Treat `data/` as user data; do not delete/overwrite `data/todo.txt` unless explicitly requested.
+- Treat todo storage as user data; do not delete or overwrite the configured todo file unless explicitly requested.
 - Avoid destructive git/file operations.
 
 ## 5. Validation
 
 - Prefer `pytest`; always run lightweight compile checks:
   - `pytest -q`
-  - `python3 -m py_compile app.py todolib.py`
+  - `python3 -m py_compile src/flask_plugin_pydo/*.py`
 - For list mutations (toggle/edit/delete), verify active/completed and filtered views.
-- For UI behavior changes, include manual browser verification notes.
+- For UI behavior changes, include manual host-app verification notes for `/pydo/`.
 
 ## 6. Dependencies/Deploy
 
 - Do not introduce heavy new dependencies unless necessary.
-- Keep deployment/auth docs copy-paste friendly.
+- Keep plugin integration and auth docs copy-paste friendly.
 - Keep reverse-proxy compatibility for path-prefix deployments (for example `/pydo`) by preserving forwarded-prefix behavior.
-- Plugin package releases use tags named `plugin-pydo-vX.Y.Z` and build from `plugin-pydo/`.
+- Plugin package releases use tags named `plugin-pydo-vX.Y.Z` and build from repo root.
 
 ## 7. Commits
 
@@ -70,6 +78,6 @@ Prefer minimal, reversible changes.
 
 ## 9. Governance Sync
 
-- If governance-relevant files change (`app.py`, `todolib.py`, `requirements.txt`, `run.sh`, or `.github/workflows/*`), update `AGENTS.md` in the same change.
+- If governance-relevant files change (`pyproject.toml`, `src/flask_plugin_pydo/*.py`, `src/flask_plugin_pydo/templates/**`, `src/flask_plugin_pydo/static/**`, or `.github/workflows/*`), update `AGENTS.md` in the same change.
 - If intentionally skipped, include `[agents-skip]` in PR title/body with a short reason.
 - PRs opened by `dependabot[bot]` are exempt from README/AGENTS guard requirements in `.github/workflows/readme-guard.yml`.

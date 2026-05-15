@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Repository flattened into a plugin-only package layout rooted at `src/flask_plugin_pydo`.
+- Standalone Flask app, container runtime files, and standalone test suite removed from the repo.
+- Root README, AGENTS guidance, and CI workflows now target plugin installation, testing, and release flow only.
+
 ## [0.9.0] - 2026-04-26
 
 ### Added

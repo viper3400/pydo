@@ -73,7 +73,7 @@ jobs:
           AGENTS_RELEVANT_CHANGED=0
           while IFS= read -r file; do
             case "$file" in
-              app.py|todolib.py|requirements.txt|run.sh|.github/workflows/*|.github/workflows/**)
+              pyproject.toml|src/flask_plugin_pydo/*.py|src/flask_plugin_pydo/templates/*|src/flask_plugin_pydo/templates/**|src/flask_plugin_pydo/static/*|src/flask_plugin_pydo/static/**|.github/workflows/*|.github/workflows/**)
                 AGENTS_RELEVANT_CHANGED=1
                 break
                 ;;
