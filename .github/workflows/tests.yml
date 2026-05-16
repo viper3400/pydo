@@ -24,12 +24,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e ./plugin-pydo
-          pip install pytest
+          pip install -e '.[test]'
 
       - name: Run tests
         run: pytest -q
 
       - name: Syntax check
-        run: python -m py_compile app.py todolib.py
+        run: python -m py_compile src/flask_plugin_pydo/*.py
