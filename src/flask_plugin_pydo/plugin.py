@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from flask_plugin_pydo.routes import blueprint
+from flask_plugin_pydo.versioning import resolve_plugin_version
 
 PLUGIN = {
     "id": "pydo",
     "name": "PyDo",
     "description": "todo.txt task management plugin.",
-    "version": "0.1.0",
+    "version": resolve_plugin_version(),
     "blueprint": blueprint,
     "menu_entry": {
         "label": "PyDo",

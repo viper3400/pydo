@@ -15,6 +15,7 @@ from flask import Request, current_app
 from werkzeug.security import check_password_hash
 
 from flask_plugin_pydo.models import ProjectGroup, Todo
+from flask_plugin_pydo.versioning import resolve_plugin_version
 
 
 DateTimeProvider = Callable[[], datetime]
@@ -58,7 +59,7 @@ class PydoSettings:
         )
         auth_enabled = bool(auth_password or auth_password_hash)
         now_provider = current_app.config.get("PYDO_NOW_PROVIDER") or datetime.now
-        version = str(current_app.config.get("PYDO_VERSION") or os.getenv("PYTODO_VERSION", "")).strip() or "-dev"
+        version = str(current_app.config.get("PYDO_VERSION", "")).strip() or resolve_plugin_version()
 
         return cls(
             todo_file=todo_file,

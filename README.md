@@ -18,6 +18,29 @@ source .venv/bin/activate
 pip install -e .
 ```
 
+## Dev mode
+
+For local development this repo includes a minimal Flask host app in `dev_app.py`
+that mounts the plugin blueprint and points it at `data/todo.txt`.
+
+Start the plugin locally from repo root:
+
+```bash
+source .venv/bin/activate
+flask --app dev_app run --debug
+```
+
+Then open `http://127.0.0.1:5000/pydo/`.
+
+Notes:
+
+- `--debug` enables auto-reload while editing Python code or templates
+- `dev_app.py` uses `PYDO_TODO_FILE="data/todo.txt"`
+- set `PYTODO_PASSWORD` or `PYTODO_PASSWORD_HASH` before startup if you want to
+  exercise the login flow in dev
+- if you want an empty local dataset, replace `data/todo.txt` with your own file
+  or point `PYDO_TODO_FILE` at a different path in `dev_app.py`
+
 ## Host app integration
 
 ```python
@@ -38,7 +61,7 @@ Host config keys:
 
 - `PYDO_TODO_FILE`: absolute or relative path to the todo file
 - `PYDO_DATA_DIR`: directory used when `PYDO_TODO_FILE` is not set
-- `PYDO_VERSION`: footer version string
+- `PYDO_VERSION`: optional footer version override
 - `PYDO_NOW_PROVIDER`: callable returning `datetime`
 - `PYDO_MAX_LOGIN_ATTEMPTS`: login lock threshold, default `3`
 
@@ -48,7 +71,7 @@ Compatible env vars preserved from the original app:
 - `PYTODO_PASSWORD_HASH`
 - `SECRET_KEY`
 - `PYTODO_SESSION_COOKIE_NAME`
-- `PYTODO_VERSION`
+- `PYTODO_VERSION`: optional footer version override fallback
 
 ## Behavior
 
@@ -79,6 +102,24 @@ Optional targeted plugin test run:
 ```bash
 pytest -q src/flask_plugin_pydo/tests
 ```
+
+## Versioning
+
+Source of truth:
+- bump `project.version` in [pyproject.toml](/Users/Jan/Documents/Development/pytodo/pyproject.toml:1)
+
+Release tag format:
+- create a matching Git tag `plugin-pydo-vX.Y.Z`
+- the release workflow rejects tags that do not match `project.version`
+
+When to bump:
+- bump this repo when shipped plugin behavior changes
+- `PATCH` for fixes, `MINOR` for backward-compatible features, `MAJOR` for breaking plugin behavior or config changes
+
+Relationship to other repos:
+- this version belongs to the `flask-plugin-pydo` plugin package only
+- PyDo keeps its own version visible in the footer
+- the shared About page should also show the deployment, platform, and installed plugin versions together
 
 ## Release
 

@@ -17,9 +17,14 @@ Prefer minimal, reversible changes.
 ## 2. Architecture Contracts
 
 - Keep controller flow in `routes.py`; keep business logic in `services.py` and parsing/model rules in `models.py`.
+- Keep plugin package version resolution centralized; use `src/flask_plugin_pydo/versioning.py` as the shared source for plugin version display and `PLUGIN["version"]`.
 - Use stable task identity for mutations from filtered/sorted UI (line-based, not visible index).
 - Keep active-list sort/group behavior aligned between `services.py` and `templates/pydo/index.html`.
 - Keep task-row metadata layout stable: due/waiting row separate from project/context tags row.
+- Preserve version visibility behavior:
+  - PyDo keeps its own version in the footer.
+  - The footer version should come from installed package metadata by default.
+  - The footer should keep the About link that points to the host/platform About page.
 - Preserve project hierarchy semantics:
   - `++MainProject` is parsed as a main project, not as a normal `+Project`.
   - `+Project` remains the normal project tag.
@@ -43,9 +48,11 @@ Prefer minimal, reversible changes.
 - Plugin host config keys include:
   - `PYDO_TODO_FILE`
   - `PYDO_DATA_DIR`
-  - `PYDO_VERSION`
   - `PYDO_NOW_PROVIDER`
   - `PYDO_MAX_LOGIN_ATTEMPTS`
+- Version overrides are compatibility/fallback inputs, not the primary source of truth:
+  - `PYDO_VERSION`
+  - `PYTODO_VERSION`
 
 ## 4. Data Safety
 
@@ -66,6 +73,7 @@ Prefer minimal, reversible changes.
 - Keep plugin integration and auth docs copy-paste friendly.
 - Keep reverse-proxy compatibility for path-prefix deployments (for example `/pydo`) by preserving forwarded-prefix behavior.
 - Plugin package releases use tags named `plugin-pydo-vX.Y.Z` and build from repo root.
+- `pyproject.toml` `project.version` is the manual source of truth for plugin releases; release tags must match it.
 
 ## 7. Commits
 
