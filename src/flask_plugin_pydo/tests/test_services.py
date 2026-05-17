@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from flask import Flask
 from flask_plugin_pydo.services import TodoList, is_duration_context
 
 
@@ -78,3 +79,19 @@ def test_set_due_by_line_replaces_due_date(tmp_path):
     stored = todo_file.read_text(encoding="utf-8")
     assert "due:2026-04-22" in stored
     assert "due:2026-04-20" not in stored
+
+
+def test_pydo_version_config_override_takes_precedence(tmp_path):
+    from flask_plugin_pydo.services import PydoSettings
+
+    app = Flask(__name__)
+    app.config.update(
+        SECRET_KEY="test-secret",
+        PYDO_TODO_FILE=str(tmp_path / "todo.txt"),
+        PYDO_VERSION="9.9.9",
+    )
+
+    with app.app_context():
+        settings = PydoSettings.from_current_app()
+
+    assert settings.app_version == "9.9.9"

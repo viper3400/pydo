@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "flask-plugin-pydo"
-version = "0.1.0"
+version = "1.0.0"
 description = "PyDo todo.txt plugin for flask-plugin-platform."
 readme = "README.md"
 requires-python = ">=3.12"

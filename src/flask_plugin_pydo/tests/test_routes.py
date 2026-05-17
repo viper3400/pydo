@@ -258,4 +258,13 @@ def test_duration_context_detection():
     assert is_duration_context("30min")
     assert is_duration_context("120")
     assert not is_duration_context("phone")
+
+
+def test_footer_shows_plugin_version_and_about_link(client):
+    response = client.get("/pydo/")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "PyTodo v" in html
+    assert 'href="/about"' in html
     assert not is_duration_context("bug30")

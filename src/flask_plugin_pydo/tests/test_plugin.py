@@ -6,7 +6,8 @@ from flask_plugin_pydo.plugin import PLUGIN
 def test_plugin_metadata_integrity():
     assert PLUGIN["id"] == "pydo"
     assert PLUGIN["name"] == "PyDo"
-    assert PLUGIN["version"] == "0.1.0"
+    assert isinstance(PLUGIN["version"], str)
+    assert PLUGIN["version"]
     assert PLUGIN["menu_entry"]["path"] == "/pydo/"
     assert PLUGIN["blueprint"].name == "pydo"
     assert PLUGIN["blueprint"].url_prefix == "/pydo"

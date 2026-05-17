@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 
 from flask_plugin_pydo.forms import AddTodoForm, EditTodoForm, LineActionForm, LoginForm
 from flask_plugin_pydo.services import (
@@ -37,9 +37,11 @@ def get_service() -> PydoService:
 @blueprint.app_context_processor
 def inject_plugin_template_context() -> dict[str, object]:
     settings = PydoSettings.from_current_app()
+    about_url = url_for("about") if "about" in current_app.view_functions else "/about"
     return {
         "pydo_app_version": settings.app_version,
         "pydo_auth_enabled": settings.auth_enabled,
+        "pydo_about_url": about_url,
     }
 
 
