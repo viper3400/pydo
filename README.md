@@ -1,144 +1,66 @@
-# flask-plugin-pydo
+# PyDo FastAPI plugin
 
-`flask-plugin-pydo` is a `todo.txt` task management plugin for `flask-plugin-platform`.
+PyDo is a standalone FastAPI todo.txt application and a discoverable FeedVanta tool plugin. It has no Flask runtime or Flask-to-ASGI bridge.
 
-## What it contains
+## Install with FeedVanta
 
-- One Flask blueprint mounted at `/pydo`
-- Plugin-local templates and static assets
-- File-backed `todo.txt` storage
-- Login gate compatible with the original PyTodo env vars
-- Entry-point discovery for `flask_plugin_platform.plugins`
-
-## Install
+The `tool_host.plugins` contract currently ships with FeedVanta rather than as an independent package. Install both projects into the same environment:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
+uv pip install -e /path/to/feed-vanta -e /path/to/pytodo
 ```
 
-## Dev mode
-
-For local development this repo includes a minimal Flask host app in `dev_app.py`
-that mounts the plugin blueprint and points it at `data/todo.txt`.
-
-Start the plugin locally from repo root:
+FeedVanta discovers the `tool_host.plugins` entry point and mounts PyDo at `/pydo`. The host and plugin must be installed in the same Python environment. For local development:
 
 ```bash
-source .venv/bin/activate
-flask --app dev_app run --debug
+uv sync --extra test
+uv run uvicorn dev_app:app --reload
 ```
 
-Then open `http://127.0.0.1:5000/pydo/`.
+This development app is available at `http://127.0.0.1:8000/`; it uses `data/todo.txt`. Do not point it at a production todo file unless intended.
 
-Notes:
-
-- `--debug` enables auto-reload while editing Python code or templates
-- `dev_app.py` uses `PYDO_TODO_FILE="data/todo.txt"`
-- set `PYTODO_PASSWORD` or `PYTODO_PASSWORD_HASH` before startup if you want to
-  exercise the login flow in dev
-- if you want an empty local dataset, replace `data/todo.txt` with your own file
-  or point `PYDO_TODO_FILE` at a different path in `dev_app.py`
-
-## Host app integration
+## Standalone app
 
 ```python
-from flask import Flask
-from flask_plugin_pydo.plugin import PLUGIN
+from flask_plugin_pydo import create_app
 
-app = Flask(__name__)
-app.config["SECRET_KEY"] = "dev-secret"
-app.config["PYDO_TODO_FILE"] = "/absolute/path/to/data/todo.txt"
-app.register_blueprint(PLUGIN["blueprint"])
+app = create_app({"PYDO_TODO_FILE": "/path/to/todo.txt", "SECRET_KEY": "replace-with-a-secret"})
 ```
 
-After registration the plugin is served at `/pydo/`.
+Run it with an ASGI server such as Uvicorn. When embedding the app beneath a path, mount it as a sub-application; the host mount path is supplied by ASGI `root_path` and used for generated links.
 
-## Config
+## Configuration
 
-Host config keys:
+`create_app(settings=...)` accepts a `PydoSettings` object or mapping. Values in the mapping override environment variables.
 
-- `PYDO_TODO_FILE`: absolute or relative path to the todo file
-- `PYDO_DATA_DIR`: directory used when `PYDO_TODO_FILE` is not set
-- `PYDO_VERSION`: optional footer version override
-- `PYDO_NOW_PROVIDER`: callable returning `datetime`
-- `PYDO_MAX_LOGIN_ATTEMPTS`: login lock threshold, default `3`
+- `PYDO_TODO_FILE`: todo file path; if unset, uses `PYDO_DATA_DIR/todo.txt`
+- `PYDO_DATA_DIR`: data and login-lock directory; defaults to `~/.local/share/pydo`
+- `PYDO_NOW_PROVIDER`: callable returning a `datetime`
+- `PYDO_MAX_LOGIN_ATTEMPTS`: failed-login threshold (default `3`)
+- `PYDO_VERSION`, then `PYTODO_VERSION`: optional footer version fallback
+- `PYTODO_PASSWORD` or `PYTODO_PASSWORD_HASH`: enables authentication
+- `SECRET_KEY`: required when authentication is enabled; used to sign the session cookie
+- `PYTODO_SESSION_COOKIE_NAME`: cookie name (default `pytodo_session`)
 
-Compatible env vars preserved from the original app:
-
-- `PYTODO_PASSWORD`
-- `PYTODO_PASSWORD_HASH`
-- `SECRET_KEY`
-- `PYTODO_SESSION_COOKIE_NAME`
-- `PYTODO_VERSION`: optional footer version override fallback
+Failed login counts and lock state are stored as `.auth_attempts` and `.auth_blocked` beside the todo file. Removing `.auth_blocked` on the server unlocks login. Never use a placeholder secret in production.
 
 ## Behavior
 
-- Stable line-based task mutation for filtered and sorted views
-- Main project hierarchy with `++MainProject` and child `+Project`
-- Active-section order:
-  `Overdue -> Due Today -> Prioritized (no due) -> Due This Week -> Other Due Dates -> Other Tasks`
-- Due quick actions remain line-targeted and repeat-safe
-- Hidden display metadata is allowlist-based for `due`, `waiting`, and `link`
-- Reverse-proxy-safe redirect handling for path-prefix mounts such as `/pydo`
+PyDo preserves todo.txt parsing, stable line-targeted edits from filtered/sorted views, project hierarchy, active section ordering, due quick actions, and allowlist-based hidden metadata. The old Flask blueprint integration has been removed; integrations must use `PLUGIN.app_factory` or `create_app` and mount the ASGI app.
 
-## Testing
-
-Run the full test suite from repo root:
+## Tests and build
 
 ```bash
-pytest -q
+uv sync --extra test
+uv run pytest -q
+uv run python -m py_compile src/flask_plugin_pydo/*.py
+uvx ruff check src/flask_plugin_pydo
+uvx ruff format --check src/flask_plugin_pydo
+uv build
 ```
 
-Quick compile check:
+To verify discovery and mounting against a local FeedVanta checkout, install both projects in the same environment and start the host. PyDo’s contract import is intentionally supplied by FeedVanta, not duplicated in this package.
 
-```bash
-python3 -m py_compile src/flask_plugin_pydo/*.py
-```
+## Versioning and releases
 
-Optional targeted plugin test run:
-
-```bash
-pytest -q src/flask_plugin_pydo/tests
-```
-
-## Versioning
-
-Source of truth:
-- bump `project.version` in [pyproject.toml](/Users/Jan/Documents/Development/pytodo/pyproject.toml:1)
-
-Release tag format:
-- create a matching Git tag `plugin-pydo-vX.Y.Z`
-- the release workflow rejects tags that do not match `project.version`
-
-When to bump:
-- bump this repo when shipped plugin behavior changes
-- `PATCH` for fixes, `MINOR` for backward-compatible features, `MAJOR` for breaking plugin behavior or config changes
-
-Relationship to other repos:
-- this version belongs to the `flask-plugin-pydo` plugin package only
-- PyDo keeps its own version visible in the footer
-- the shared About page should also show the deployment, platform, and installed plugin versions together
-
-## Release
-
-Plugin package releases use tags named `plugin-pydo-vX.Y.Z`.
-
-The GitHub release workflow:
-
-- verifies the tag matches `project.version` in `pyproject.toml`
-- builds wheel and sdist from repo root
-- validates artifacts with `twine`
-- publishes a GitHub release with the built distributions attached
-
-## Repository layout
-
-```text
-.
-├── src/flask_plugin_pydo/    # plugin code, templates, static assets, tests
-├── pyproject.toml            # package metadata
-├── CHANGELOG.md              # release history
-├── AGENTS.md                 # repo agent guidance
-└── README.md                 # plugin docs
-```
+`project.version` in `pyproject.toml` is the release source of truth. Plugin release tags use `plugin-pydo-vX.Y.Z`.

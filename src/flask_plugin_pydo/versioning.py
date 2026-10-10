@@ -10,6 +10,6 @@ def resolve_plugin_version() -> str:
         return override
 
     try:
-        return metadata.version("flask-plugin-pydo")
+        return metadata.version("pydo-fastapi-plugin")
     except metadata.PackageNotFoundError:
         return "local-dev"

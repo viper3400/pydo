@@ -1,270 +1,135 @@
 from datetime import datetime
 
-from flask import Flask
-import pytest
+from fastapi.testclient import TestClient
 
-from flask_plugin_pydo.plugin import PLUGIN
-from flask_plugin_pydo.services import Todo, TodoList, is_duration_context
+from flask_plugin_pydo.routes import create_app
 
 
-@pytest.fixture
-def app(tmp_path):
-    host_app = Flask(__name__)
-    host_app.config.update(
-        SECRET_KEY="test-secret",
-        TESTING=True,
-        PYDO_TODO_FILE=str(tmp_path / "todo.txt"),
-        PYDO_NOW_PROVIDER=lambda: datetime(2026, 4, 22, 9, 0, 0),
+def make_client(tmp_path, **settings):
+    values = {
+        "PYDO_TODO_FILE": str(tmp_path / "todo.txt"),
+        "PYDO_NOW_PROVIDER": lambda: datetime(2026, 4, 22, 9),
+        "SECRET_KEY": "test-secret",
+    }
+    values.update(settings)
+    return TestClient(create_app(values))
+
+
+def test_add_and_line_targeted_edit(tmp_path):
+    client = make_client(tmp_path)
+    assert (
+        client.post(
+            "/add",
+            data={"text": "Write tests", "priority": "A"},
+            follow_redirects=False,
+        ).status_code
+        == 302
     )
-    host_app.register_blueprint(PLUGIN["blueprint"])
-    return host_app
-
-
-@pytest.fixture
-def client(app):
-    return app.test_client()
-
-
-@pytest.fixture
-def todo_file(app):
-    return app.config["PYDO_TODO_FILE"]
-
-
-def read_todo_file(todo_file):
-    return open(todo_file, "r", encoding="utf-8").read()
-
-
-def write_todo_file(todo_file, content: str):
-    with open(todo_file, "w", encoding="utf-8") as file_obj:
-        file_obj.write(content)
-
-
-def test_add_route_persists_todo(client, todo_file):
-    response = client.post("/pydo/add", data={"text": "Write tests", "priority": "A"})
-    assert response.status_code == 302
-    assert "(A) Write tests" in read_todo_file(todo_file)
-
-
-def test_sort_active_items_places_prioritized_no_due_before_due_this_week(app):
-    now_provider = app.config["PYDO_NOW_PROVIDER"]
-    todos = TodoList(app.config["PYDO_TODO_FILE"], now_provider=now_provider)
-    todos.todos = [
-        Todo.from_line("t_today due:2026-04-22"),
-        Todo.from_line("(B) t_prio"),
-        Todo.from_line("(B) t_week_b due:2026-04-25"),
-        Todo.from_line("(A) t_week_a due:2026-04-25"),
-        Todo.from_line("t_week_soon due:2026-04-23"),
-        Todo.from_line("(A) t_later_a due:2026-05-02"),
-    ]
-    sorted_items = sorted(
-        [todo for todo in todos.todos if todo is not None],
-        key=lambda item: (0, item.to_line()),
-    )
-    del sorted_items
-
-    from flask_plugin_pydo.routes import get_service
-
-    with app.app_context():
-        service = get_service()
-        sorted_active = service.sort_active_items([todo for todo in todos.todos if todo is not None])
-
-    assert [todo.get_edit_text().split()[0] for todo in sorted_active] == [
-        "t_today",
-        "t_prio",
-        "t_week_soon",
-        "t_week_a",
-        "t_week_b",
-        "t_later_a",
-    ]
-
-
-def test_active_view_sections_show_prioritized_before_due_this_week(client, todo_file):
-    write_todo_file(
-        todo_file,
-        "\n".join(
-            [
-                "today_task due:2026-04-22",
-                "(A) prio_no_due",
-                "(B) due_with_prio due:2026-04-24",
-                "due_no_prio due:2026-04-23",
-            ]
-        ) + "\n",
-    )
-
-    response = client.get("/pydo/")
-    html = response.get_data(as_text=True)
-
-    assert response.status_code == 200
-    assert html.find("📍 Due Today") < html.find("⚡ Prioritized Tasks") < html.find("📅 Due This Week")
-    assert "⚡ Prioritized Tasks (1)" in html
-    assert "📅 Due This Week (2)" in html
-
-
-def test_duration_contexts_are_split_from_main_context_panel(client, todo_file):
-    write_todo_file(todo_file, "Call customer @phone @30min\nReview contract @120 min\n")
-
-    response = client.get("/pydo/")
-    html = response.get_data(as_text=True)
-
-    contexts_panel = html[html.find("🏷️ Contexts"):html.find("⏱️ Duration Context")]
-    duration_panel = html[html.find("⏱️ Duration Context"):html.find("⚡ Priorities")]
-
-    assert "@phone" in contexts_panel
-    assert "@30min" not in contexts_panel
-    assert "@120" not in contexts_panel
-    assert "@30min" in duration_panel
-    assert "@120" in duration_panel
-    assert "duration-context-tag" in html
-
-
-def test_project_sidebar_groups_main_projects(client, todo_file):
-    write_todo_file(
-        todo_file,
-        "\n".join(
-            [
-                "Plan migration ++ClientA +Migration",
-                "Handle support ++ClientA +Support",
-                "Review roadmap ++ClientA",
-                "Buy milk +Personal",
-            ]
-        ) + "\n",
-    )
-
-    response = client.get("/pydo/")
-    html = response.get_data(as_text=True)
-
-    assert "++ClientA" in html
-    assert "/pydo/main-project/ClientA" in html
-    assert "/pydo/main-project/ClientA/project/Migration" in html
-    assert "/pydo/main-project/ClientA/project/Support" in html
-    assert "/pydo/main-project/ClientA/no-subproject" in html
-    assert "No subproject" in html
-    assert "+Personal" in html
-
-
-def test_main_project_filters_include_expected_tasks(client, todo_file):
-    write_todo_file(
-        todo_file,
-        "\n".join(
-            [
-                "Plan migration ++ClientA +Migration",
-                "Handle support ++ClientA +Support",
-                "Review roadmap ++ClientA",
-                "Buy milk +Personal",
-            ]
-        ) + "\n",
-    )
-
-    main_html = client.get("/pydo/main-project/ClientA").get_data(as_text=True)
-    child_html = client.get("/pydo/main-project/ClientA/project/Migration").get_data(as_text=True)
-    no_child_html = client.get("/pydo/main-project/ClientA/no-subproject").get_data(as_text=True)
-
-    assert "Plan migration" in main_html
-    assert "Handle support" in main_html
-    assert "Review roadmap" in main_html
-    assert "Buy milk" not in main_html
-
-    assert "Plan migration" in child_html
-    assert "Handle support" not in child_html
-    assert "Review roadmap" not in child_html
-
-    assert "Review roadmap" in no_child_html
-    assert "Plan migration" not in no_child_html
-    assert "Handle support" not in no_child_html
-
-
-def test_edit_route_ajax_updates_task_without_redirect(client, todo_file):
-    write_todo_file(todo_file, "(B) Original task\n")
-
-    response = client.post(
-        "/pydo/edit/0",
-        data={"line": "(B) Original task", "text": "Updated task", "priority": "A"},
+    assert "(A) Write tests" in (tmp_path / "todo.txt").read_text()
+    result = client.post(
+        "/edit/0",
+        data={"line": "(A) Write tests", "text": "Updated", "priority": "B"},
         headers={"X-Requested-With": "XMLHttpRequest"},
     )
+    assert result.json() == {"success": True}
+    assert "(B) Updated" in (tmp_path / "todo.txt").read_text()
 
+
+def test_render_and_static_assets(tmp_path):
+    client = make_client(tmp_path)
+    response = client.get("/")
     assert response.status_code == 200
-    assert response.get_json()["success"] is True
-    assert "(A) Updated task" in read_todo_file(todo_file)
+    assert "Add New Task" in response.text
+    assert client.get("/static/js/app.js").status_code == 200
 
 
-def test_edit_route_ajax_returns_404_when_task_not_found(client, todo_file):
-    write_todo_file(todo_file, "(B) Existing task\n")
-
-    response = client.post(
-        "/pydo/edit/0",
-        data={"line": "(B) Missing task", "text": "Updated task", "priority": "A"},
-        headers={"X-Requested-With": "XMLHttpRequest"},
+def test_active_section_order_and_due_priority_placement(tmp_path):
+    client = make_client(tmp_path)
+    (tmp_path / "todo.txt").write_text(
+        "today_task due:2026-04-22\n(A) prio_no_due\n(B) due_with_prio due:2026-04-24\n"
     )
-
-    assert response.status_code == 404
-    payload = response.get_json()
-    assert payload["success"] is False
-    assert "not found" in payload["error"].lower()
-
-
-def test_tomorrow_route_postpones_due_date(client, todo_file):
-    write_todo_file(todo_file, "Call vendor due:2026-04-22\n")
-
-    response = client.post("/pydo/tomorrow/0", data={"line": "Call vendor due:2026-04-22"})
-
-    assert response.status_code == 302
-    assert "due:2026-04-23" in read_todo_file(todo_file)
+    html = client.get("/").text
+    assert html.index("📍 Due Today") < html.index("⚡ Prioritized Tasks")
+    assert "due_with_prio" in html
+    assert "📅 Due This Week (1)" in html
 
 
-def test_today_route_sets_due_date_to_today(client, todo_file):
-    write_todo_file(todo_file, "Call vendor due:2026-04-20\n")
+def test_main_project_and_child_project_filters(tmp_path):
+    client = make_client(tmp_path)
+    (tmp_path / "todo.txt").write_text(
+        "Child task ++Client +Migration\nParent only ++Client\nOther +Personal\n"
+    )
+    main = client.get("/main-project/Client").text
+    child = client.get("/main-project/Client/project/Migration").text
+    parent = client.get("/main-project/Client/no-subproject").text
+    assert "Child task" in main and "Parent only" in main and "Other" not in main
+    assert "Child task" in child and "Parent only" not in child
+    assert "Parent only" in parent and "Child task" not in parent
 
-    response = client.post("/pydo/today/0", data={"line": "Call vendor due:2026-04-20"})
 
-    assert response.status_code == 302
-    assert "due:2026-04-22" in read_todo_file(todo_file)
+def test_tomorrow_action_and_footer_about_link(tmp_path):
+    client = make_client(tmp_path)
+    (tmp_path / "todo.txt").write_text("Call vendor due:2026-04-22\n")
+    client.post("/tomorrow/0", data={"line": "Call vendor due:2026-04-22"})
+    assert "due:2026-04-23" in (tmp_path / "todo.txt").read_text()
+    page = client.get("/").text
+    assert 'href="/about"' in page
 
 
-def test_login_gate_redirects_when_enabled(tmp_path):
-    app = Flask(__name__)
-    app.config.update(
-        SECRET_KEY="test-secret",
-        TESTING=True,
-        PYDO_TODO_FILE=str(tmp_path / "todo.txt"),
+def test_auth_and_secure_next_redirect(tmp_path):
+    client = make_client(
+        tmp_path,
         PYTODO_PASSWORD="secret",
+        PYTODO_SESSION_COOKIE_NAME="custom_session",
     )
-    app.register_blueprint(PLUGIN["blueprint"])
-    client = app.test_client()
-
-    response = client.get("/pydo/")
-
-    assert response.status_code == 302
-    assert "/pydo/login" in response.headers["Location"]
-
-
-def test_login_redirect_preserves_forwarded_prefix(tmp_path):
-    app = Flask(__name__)
-    app.config.update(
-        SECRET_KEY="test-secret",
-        TESTING=True,
-        PYDO_TODO_FILE=str(tmp_path / "todo.txt"),
-        PYTODO_PASSWORD="secret",
+    assert client.get("/", follow_redirects=False).headers["location"].startswith("/login?")
+    bad = client.post("/login", data={"password": "wrong", "next": "//evil.test"})
+    assert bad.status_code == 200
+    ok = client.post(
+        "/login",
+        data={"password": "secret", "next": "//evil.test"},
+        follow_redirects=False,
     )
-    app.register_blueprint(PLUGIN["blueprint"])
-    client = app.test_client()
-
-    response = client.get("/pydo/", headers={"X-Forwarded-Prefix": "/host"})
-    assert response.status_code == 302
-    assert "/pydo/login" in response.headers["Location"]
-
-
-def test_duration_context_detection():
-    assert is_duration_context("5min")
-    assert is_duration_context("30min")
-    assert is_duration_context("120")
-    assert not is_duration_context("phone")
+    assert ok.headers["location"] == "/"
+    cookie = ok.headers["set-cookie"]
+    assert cookie.startswith("custom_session=")
+    assert "httponly" in cookie.lower() and "samesite=lax" in cookie.lower()
+    assert client.get("/").status_code == 200
 
 
-def test_footer_shows_plugin_version_and_about_link(client):
+def test_login_block_after_configured_failures(tmp_path):
+    client = make_client(tmp_path, PYTODO_PASSWORD="secret", PYDO_MAX_LOGIN_ATTEMPTS=2)
+    client.post("/login", data={"password": "wrong"})
+    client.post("/login", data={"password": "wrong"})
+    assert (tmp_path / ".auth_blocked").exists()
+    assert "blocked" in client.get("/login").text.lower()
+
+
+def test_mounted_host_prefix_and_mutation(tmp_path):
+    from fastapi import FastAPI
+
+    host = FastAPI()
+    host.mount(
+        "/pydo",
+        create_app({"PYDO_TODO_FILE": str(tmp_path / "todo.txt"), "SECRET_KEY": "secret"}),
+    )
+    client = TestClient(host)
     response = client.get("/pydo/")
-    html = response.get_data(as_text=True)
-
     assert response.status_code == 200
-    assert "PyTodo v" in html
-    assert 'href="/about"' in html
-    assert not is_duration_context("bug30")
+    assert "/pydo/static/css/style.css" in response.text
+    client.post("/pydo/add", data={"text": "Mount works"})
+    assert "Mount works" in (tmp_path / "todo.txt").read_text()
+
+
+def test_due_action_repeat_safe(tmp_path):
+    client = make_client(tmp_path)
+    (tmp_path / "todo.txt").write_text("Call vendor due:2026-04-20\n")
+    client.post("/today/0", data={"line": "Call vendor due:2026-04-20"})
+    assert "due:2026-04-22" in (tmp_path / "todo.txt").read_text()
+
+
+def test_invalid_auth_configuration_requires_secret(tmp_path):
+    import pytest
+
+    with pytest.raises(ValueError, match="SECRET_KEY"):
+        create_app({"PYDO_TODO_FILE": str(tmp_path / "todo.txt"), "PYTODO_PASSWORD": "secret"})

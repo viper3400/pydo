@@ -1,40 +1,50 @@
-from flask import Flask
+import importlib.util
 
-from flask_plugin_pydo.plugin import PLUGIN
-
-
-def test_plugin_metadata_integrity():
-    assert PLUGIN["id"] == "pydo"
-    assert PLUGIN["name"] == "PyDo"
-    assert isinstance(PLUGIN["version"], str)
-    assert PLUGIN["version"]
-    assert PLUGIN["menu_entry"]["path"] == "/pydo/"
-    assert PLUGIN["blueprint"].name == "pydo"
-    assert PLUGIN["blueprint"].url_prefix == "/pydo"
+import pytest
 
 
-def test_blueprint_registration():
-    app = Flask(__name__)
-    app.config["SECRET_KEY"] = "test-secret"
-    app.register_blueprint(PLUGIN["blueprint"])
+@pytest.mark.skipif(
+    importlib.util.find_spec("tool_host") is None,
+    reason="FeedVanta host contract is not installed",
+)
+def test_plugin_export_uses_feedvanta_contract():
+    from tool_host.plugins import Plugin
 
-    rules = {rule.rule for rule in app.url_map.iter_rules() if rule.endpoint.startswith("pydo.")}
-    assert "/pydo/" in rules
-    assert "/pydo/add" in rules
-    assert "/pydo/login" in rules
+    from flask_plugin_pydo.plugin import PLUGIN
+
+    assert isinstance(PLUGIN, Plugin)
+    assert (PLUGIN.id, PLUGIN.name, PLUGIN.path) == ("pydo", "PyDo", "/pydo")
+    assert PLUGIN.app_factory().state.pydo_settings.todo_file
 
 
-def test_app_factory_integration(tmp_path):
-    app = Flask(__name__)
-    app.config.update(
-        SECRET_KEY="test-secret",
-        TESTING=True,
-        PYDO_TODO_FILE=str(tmp_path / "todo.txt"),
+@pytest.mark.skipif(
+    importlib.util.find_spec("tool_host") is None,
+    reason="FeedVanta host contract is not installed",
+)
+def test_feedvanta_discovers_and_mounts_plugin(tmp_path):
+    from fastapi.testclient import TestClient
+    from tool_host.app import create_app
+    from tool_host.plugins import Plugin
+
+    from flask_plugin_pydo.plugin import PLUGIN
+
+    plugin = Plugin(
+        PLUGIN.id,
+        PLUGIN.name,
+        PLUGIN.description,
+        PLUGIN.version,
+        PLUGIN.path,
+        lambda: PLUGIN.app_factory(
+            {"PYDO_TODO_FILE": str(tmp_path / "todo.txt"), "SECRET_KEY": "host-test"}
+        ),
     )
-    app.register_blueprint(PLUGIN["blueprint"])
-
-    client = app.test_client()
-    response = client.get("/pydo/")
-
-    assert response.status_code == 200
-    assert "Add New Task" in response.get_data(as_text=True)
+    client = TestClient(create_app([plugin]))
+    page = client.get("/pydo/")
+    assert page.status_code == 200
+    assert "/pydo/static/css/style.css" in page.text
+    assert 'href="/about"' in page.text
+    assert client.get("/pydo/static/js/app.js").status_code == 200
+    proxied = client.get("/pydo/", headers={"X-Forwarded-Prefix": "/suburl"})
+    assert proxied.status_code == 200
+    assert "/suburl/pydo/static/css/style.css" in proxied.text
+    assert 'href="/suburl/about"' in proxied.text

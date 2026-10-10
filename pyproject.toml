@@ -3,30 +3,43 @@ requires = ["hatchling>=1.25.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "flask-plugin-pydo"
+name = "pydo-fastapi-plugin"
 version = "1.0.0"
-description = "PyDo todo.txt plugin for flask-plugin-platform."
+description = "PyDo todo.txt plugin for FeedVanta's FastAPI tool host."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = { text = "MIT" }
 authors = [
   { name = "Jan" }
 ]
 dependencies = [
-  "Flask>=3.0,<4.0",
+  "fastapi>=0.115,<1",
+  "jinja2>=3.1,<4",
+  "python-multipart>=0.0.9,<1",
+  "itsdangerous>=2.2,<3",
   "Werkzeug>=3.0,<4.0",
 ]
 
 [project.optional-dependencies]
 test = [
   "pytest>=8.0",
+  "httpx>=0.27",
+  "uvicorn>=0.30",
 ]
 
-[project.entry-points."flask_plugin_platform.plugins"]
+[project.entry-points."tool_host.plugins"]
 pydo = "flask_plugin_pydo.plugin:PLUGIN"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/flask_plugin_pydo"]
+include = ["src/flask_plugin_pydo/**/*.py", "src/flask_plugin_pydo/templates/**/*.html", "src/flask_plugin_pydo/static/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["src/flask_plugin_pydo/tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
