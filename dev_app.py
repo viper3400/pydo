@@ -1,9 +1,5 @@
-from flask import Flask
-from flask_plugin_pydo.plugin import PLUGIN
+"""Standalone development app; run with ``uvicorn dev_app:app --reload``."""
 
-app = Flask(__name__)
-app.config.update(
-    SECRET_KEY="dev-secret",
-    PYDO_TODO_FILE="data/todo.txt",
-)
-app.register_blueprint(PLUGIN["blueprint"])
+from flask_plugin_pydo.routes import create_app
+
+app = create_app({"PYDO_TODO_FILE": "data/todo.txt", "SECRET_KEY": "development-only-change-me"})

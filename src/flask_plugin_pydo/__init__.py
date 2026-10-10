@@ -1,6 +1,5 @@
 """PyDo plugin package."""
 
-from flask_plugin_pydo.plugin import PLUGIN
-from flask_plugin_pydo.routes import blueprint
+from flask_plugin_pydo.routes import create_app
 
-__all__ = ["PLUGIN", "blueprint"]
+__all__ = ["create_app"]

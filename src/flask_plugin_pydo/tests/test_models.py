@@ -54,7 +54,9 @@ def test_plus_inside_link_is_not_parsed_as_project():
 
 
 def test_display_text_filters_only_known_custom_fields():
-    todo = Todo.from_line("Review docs due:2026-04-21 waiting:alex link:https://example.com ref:ABC-123 +Proj @desk")
+    todo = Todo.from_line(
+        "Review docs due:2026-04-21 waiting:alex link:https://example.com ref:ABC-123 +Proj @desk"
+    )
 
     assert todo is not None
     display = todo.get_display_text()
@@ -68,9 +70,7 @@ def test_display_text_filters_only_known_custom_fields():
 
 
 def test_parse_multiple_links_and_hide_them_in_display_text():
-    todo = Todo.from_line(
-        "Read docs link:https://example.com link:docs.python.org due:2026-04-21"
-    )
+    todo = Todo.from_line("Read docs link:https://example.com link:docs.python.org due:2026-04-21")
 
     assert todo is not None
     assert todo.links == ["https://example.com", "docs.python.org"]

@@ -5,18 +5,16 @@ from __future__ import annotations
 import hmac
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Callable
 from urllib.parse import urlparse
 
-from flask import Request, current_app
 from werkzeug.security import check_password_hash
 
 from flask_plugin_pydo.models import ProjectGroup, Todo
 from flask_plugin_pydo.versioning import resolve_plugin_version
-
 
 DateTimeProvider = Callable[[], datetime]
 
@@ -37,11 +35,14 @@ class PydoSettings:
     auth_block_file: Path
     app_version: str
     now_provider: DateTimeProvider
+    secret_key: str = ""
+    session_cookie_name: str = "pytodo_session"
 
     @classmethod
-    def from_current_app(cls) -> "PydoSettings":
-        configured_file = current_app.config.get("PYDO_TODO_FILE")
-        configured_dir = current_app.config.get("PYDO_DATA_DIR")
+    def from_env(cls, overrides: dict | None = None) -> PydoSettings:
+        config = {**os.environ, **(overrides or {})}
+        configured_file = config.get("PYDO_TODO_FILE")
+        configured_dir = config.get("PYDO_DATA_DIR")
 
         if configured_file:
             todo_file = Path(str(configured_file))
@@ -50,27 +51,33 @@ class PydoSettings:
             if configured_dir:
                 data_dir = Path(str(configured_dir))
             else:
-                data_dir = Path(current_app.instance_path) / "pydo"
+                data_dir = Path.home() / ".local" / "share" / "pydo"
             todo_file = data_dir / "todo.txt"
 
-        auth_password = str(current_app.config.get("PYTODO_PASSWORD") or os.getenv("PYTODO_PASSWORD", ""))
-        auth_password_hash = str(
-            current_app.config.get("PYTODO_PASSWORD_HASH") or os.getenv("PYTODO_PASSWORD_HASH", "")
-        )
+        auth_password = str(config.get("PYTODO_PASSWORD", ""))
+        auth_password_hash = str(config.get("PYTODO_PASSWORD_HASH", ""))
         auth_enabled = bool(auth_password or auth_password_hash)
-        now_provider = current_app.config.get("PYDO_NOW_PROVIDER") or datetime.now
-        version = str(current_app.config.get("PYDO_VERSION", "")).strip() or resolve_plugin_version()
+        max_login_attempts = int(config.get("PYDO_MAX_LOGIN_ATTEMPTS", 3))
+        if max_login_attempts < 1:
+            raise ValueError("PYDO_MAX_LOGIN_ATTEMPTS must be at least 1")
+        now_provider = config.get("PYDO_NOW_PROVIDER") or datetime.now
+        version = (
+            str(config.get("PYDO_VERSION", "") or config.get("PYTODO_VERSION", "")).strip()
+            or resolve_plugin_version()
+        )
 
         return cls(
             todo_file=todo_file,
             auth_password=auth_password,
             auth_password_hash=auth_password_hash,
             auth_enabled=auth_enabled,
-            max_login_attempts=int(current_app.config.get("PYDO_MAX_LOGIN_ATTEMPTS", 3)),
+            max_login_attempts=max_login_attempts,
             auth_attempts_file=data_dir / ".auth_attempts",
             auth_block_file=data_dir / ".auth_blocked",
             app_version=version,
             now_provider=now_provider,
+            secret_key=str(config.get("SECRET_KEY", "")),
+            session_cookie_name=str(config.get("PYTODO_SESSION_COOKIE_NAME", "pytodo_session")),
         )
 
 
@@ -178,7 +185,9 @@ class TodoList:
                 due = todo.custom_fields.get("due")
                 if not due:
                     return False
-                next_due = (datetime.strptime(due, "%Y-%m-%d") + timedelta(days=days)).strftime("%Y-%m-%d")
+                next_due = (datetime.strptime(due, "%Y-%m-%d") + timedelta(days=days)).strftime(
+                    "%Y-%m-%d"
+                )
                 return self._replace_due(line, next_due)
         return False
 
@@ -193,13 +202,18 @@ class TodoList:
 
     def get_overdue(self) -> list[Todo]:
         today = self.now_provider().strftime("%Y-%m-%d")
-        return [todo for todo in self.get_active() if (due := todo.custom_fields.get("due")) and due < today]
+        return [
+            todo
+            for todo in self.get_active()
+            if (due := todo.custom_fields.get("due")) and due < today
+        ]
 
     def get_due_soon(self) -> list[Todo]:
         today = self.now_provider().strftime("%Y-%m-%d")
         week_end = (self.now_provider() + timedelta(days=7)).strftime("%Y-%m-%d")
         return [
-            todo for todo in self.get_active()
+            todo
+            for todo in self.get_active()
             if (due := todo.custom_fields.get("due")) and today <= due <= week_end
         ]
 
@@ -261,7 +275,6 @@ class PydoService:
             try:
                 return check_password_hash(normalized_hash, candidate)
             except ValueError:
-                current_app.logger.error("Invalid PYTODO_PASSWORD_HASH format.")
                 return False
         if self.settings.auth_password:
             return hmac.compare_digest(self.settings.auth_password, candidate)
@@ -271,13 +284,8 @@ class PydoService:
         parsed = urlparse(target)
         return parsed.scheme == "" and parsed.netloc == ""
 
-    def build_safe_next_url(self, request: Request) -> str:
-        full_path = request.full_path
-        if full_path.endswith("?"):
-            full_path = full_path[:-1]
-        script_root = request.script_root or ""
-        next_url = f"{script_root}{full_path}" if script_root else full_path
-        return next_url or "/"
+    def build_safe_next_url(self, request) -> str:
+        return request.url.path + (f"?{request.url.query}" if request.url.query else "")
 
     def sort_active_items(self, items: list[Todo]) -> list[Todo]:
         today = self.today()
@@ -311,7 +319,9 @@ class PydoService:
             return todos.get_completed()
         return todos.get_active()
 
-    def build_project_hierarchy(self, items: list[Todo]) -> dict[str, list[dict[str, object]] | list[str]]:
+    def build_project_hierarchy(
+        self, items: list[Todo]
+    ) -> dict[str, list[dict[str, object]] | list[str]]:
         groups: dict[str, ProjectGroup] = {}
         ungrouped_projects: set[str] = set()
 
@@ -347,18 +357,25 @@ class PydoService:
         normalized_scope = self.normalize_sidebar_scope(sidebar_scope)
         project_hierarchy = self.build_project_hierarchy(scoped_items)
         scoped_context_values = {context for todo in scoped_items for context in todo.contexts}
-        scoped_contexts = sorted(context for context in scoped_context_values if not is_duration_context(context))
-        scoped_duration_contexts = sorted(context for context in scoped_context_values if is_duration_context(context))
+        scoped_contexts = sorted(
+            context for context in scoped_context_values if not is_duration_context(context)
+        )
+        scoped_duration_contexts = sorted(
+            context for context in scoped_context_values if is_duration_context(context)
+        )
         scoped_priorities = sorted({todo.priority for todo in scoped_items if todo.priority})
         waiting_tasks = [
-            todo for todo in scoped_items
+            todo
+            for todo in scoped_items
             if "waiting" in todo.contexts or todo.custom_fields.get("waiting")
         ]
-        waiting_for_people = sorted({
-            todo.custom_fields.get("waiting")
-            for todo in scoped_items
-            if todo.custom_fields.get("waiting")
-        })
+        waiting_for_people = sorted(
+            {
+                todo.custom_fields.get("waiting")
+                for todo in scoped_items
+                if todo.custom_fields.get("waiting")
+            }
+        )
         due_today = [todo for todo in active_items if todo.custom_fields.get("due") == today]
         due_soon = [todo for todo in todos.get_due_soon() if todo.custom_fields.get("due") != today]
 
@@ -397,7 +414,9 @@ def count_with_context(todos: list[Todo], context: str) -> int:
 
 
 def count_waiting_for(todos: list[Todo], person: str) -> int:
-    return len([todo for todo in todos if todo.custom_fields.get("waiting", "").lower() == person.lower()])
+    return len(
+        [todo for todo in todos if todo.custom_fields.get("waiting", "").lower() == person.lower()]
+    )
 
 
 def count_with_priority(todos: list[Todo], priority: str) -> int:

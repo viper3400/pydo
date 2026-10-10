@@ -36,7 +36,11 @@ class Todo:
             if self.complete and not consumed_completion and token == "x":
                 consumed_completion = True
                 idx += 1
-                if self.completion_date and idx < len(tokens) and tokens[idx] == self.completion_date:
+                if (
+                    self.completion_date
+                    and idx < len(tokens)
+                    and tokens[idx] == self.completion_date
+                ):
                     idx += 1
                 continue
 
@@ -68,17 +72,17 @@ class Todo:
             match = re.match(r"(\d{4}-\d{2}-\d{2})\s+", line)
             if match:
                 todo.completion_date = match.group(1)
-                line = line[len(match.group(1)):].strip()
+                line = line[len(match.group(1)) :].strip()
 
         priority_match = re.match(r"^\(([A-Z])\)\s+", line)
         if priority_match:
             todo.priority = priority_match.group(1)
-            line = line[len(priority_match.group(0)):].strip()
+            line = line[len(priority_match.group(0)) :].strip()
 
         date_match = re.match(r"^(\d{4}-\d{2}-\d{2})\s+", line)
         if date_match:
             todo.creation_date = date_match.group(1)
-            line = line[len(date_match.group(0)):].strip()
+            line = line[len(date_match.group(0)) :].strip()
 
         todo.main_projects = re.findall(r"(?<!\S)\+\+(\S+)", line)
         todo.projects = re.findall(r"(?<!\S)\+(?!\+)(\S+)", line)

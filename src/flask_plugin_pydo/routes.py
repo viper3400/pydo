@@ -1,12 +1,17 @@
-"""Blueprint routes for the PyDo plugin."""
+"""FastAPI application factory and PyDo HTTP routes."""
 
 from __future__ import annotations
 
-from datetime import datetime
+from pathlib import Path
+from urllib.parse import quote, urlencode, urlparse
 
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
-from flask_plugin_pydo.forms import AddTodoForm, EditTodoForm, LineActionForm, LoginForm
+from flask_plugin_pydo.forms import normalize_priority
 from flask_plugin_pydo.services import (
     PydoService,
     PydoSettings,
@@ -21,381 +26,445 @@ from flask_plugin_pydo.services import (
     is_overdue,
 )
 
-blueprint = Blueprint(
-    "pydo",
-    __name__,
-    url_prefix="/pydo",
-    template_folder="templates",
-    static_folder="static",
-)
+PACKAGE = Path(__file__).parent
 
 
-def get_service() -> PydoService:
-    return PydoService(PydoSettings.from_current_app())
+def create_app(settings: PydoSettings | dict | None = None) -> FastAPI:
+    configured = settings if isinstance(settings, PydoSettings) else PydoSettings.from_env(settings)
+    if configured.auth_enabled and not configured.secret_key:
+        raise ValueError("SECRET_KEY is required when PyDo authentication is enabled")
+    app = FastAPI(title="PyDo")
+    app.state.pydo_settings = configured
+    template_engine = Jinja2Templates(directory=str(PACKAGE / "templates"))
+    template_engine.env.filters.update(
+        {
+            "count_with_project": count_with_project,
+            "count_with_context": count_with_context,
+            "count_waiting_for": count_waiting_for,
+            "count_with_priority": count_with_priority,
+            "is_duration_context": is_duration_context,
+            "format_date": format_date,
+            "format_due_date": format_due_date,
+            "external_link_href": external_link_href,
+            "is_overdue": lambda value: is_overdue(value, configured.now_provider),
+        }
+    )
+    app.mount("/static", StaticFiles(directory=str(PACKAGE / "static")), name="pydo.static")
 
+    def service() -> PydoService:
+        return PydoService(configured)
 
-@blueprint.app_context_processor
-def inject_plugin_template_context() -> dict[str, object]:
-    settings = PydoSettings.from_current_app()
-    about_url = url_for("about") if "about" in current_app.view_functions else "/about"
-    return {
-        "pydo_app_version": settings.app_version,
-        "pydo_auth_enabled": settings.auth_enabled,
-        "pydo_about_url": about_url,
-    }
+    def local_url(request: Request, path: str) -> str:
+        return request.scope.get("root_path", "").rstrip("/") + path
 
+    def safe_referrer(request: Request) -> str:
+        fallback = local_url(request, "/")
+        value = request.headers.get("referer", "")
+        parsed = urlparse(value)
+        if parsed.scheme or parsed.netloc:
+            if parsed.netloc != request.url.netloc or parsed.scheme not in {
+                "http",
+                "https",
+            }:
+                return fallback
+            value = parsed.path + (f"?{parsed.query}" if parsed.query else "")
+        prefix = request.scope.get("root_path", "").rstrip("/")
+        if (
+            value.startswith("/")
+            and not value.startswith("//")
+            and (not prefix or value == prefix or value.startswith(prefix + "/"))
+        ):
+            return value
+        return fallback
 
-@blueprint.before_request
-def require_login():
-    service = get_service()
-    if not service.settings.auth_enabled:
-        return None
+    def about_url(request: Request) -> str:
+        root_path = request.scope.get("root_path", "").rstrip("/")
+        proxy_prefix = root_path[: -len("/pydo")] if root_path.endswith("/pydo") else root_path
+        return proxy_prefix + "/about"
 
-    endpoint = request.endpoint or ""
-    allowed_endpoints = {"pydo.login", "pydo.static"}
-    if endpoint in allowed_endpoints:
-        return None
+    def render(request: Request, page: str, **context):
+        flashes = request.session.pop("_flashes", []) if "session" in request.scope else []
+        paths = {
+            "pydo.index": "/",
+            "pydo.add_todo": "/add",
+            "pydo.toggle_todo": "/toggle/{index}",
+            "pydo.delete_todo": "/delete/{index}",
+            "pydo.edit_todo": "/edit/{index}",
+            "pydo.set_due_today": "/today/{index}",
+            "pydo.postpone_due_tomorrow": "/tomorrow/{index}",
+            "pydo.login": "/login",
+            "pydo.logout": "/logout",
+            "pydo.static": "/static/{filename}",
+            "pydo.filter_project": "/project/{project}",
+            "pydo.filter_main_project": "/main-project/{main_project}",
+            "pydo.filter_main_project_child": "/main-project/{main_project}/project/{project}",
+            "pydo.filter_main_project_no_subproject": "/main-project/{main_project}/no-subproject",
+            "pydo.filter_context": "/context/{context}",
+            "pydo.filter_priority": "/priority/{priority}",
+            "pydo.filter_due": "/due/{date}",
+            "pydo.filter_waiting": "/waiting",
+            "pydo.filter_waiting_for": "/waiting/{person}",
+        }
 
-    if not session.get("pydo_authenticated"):
-        return redirect(url_for("pydo.login", next=service.build_safe_next_url(request)))
-
-    return None
-
-
-@blueprint.route("/login", methods=["GET", "POST"])
-def login():
-    service = get_service()
-    if not service.settings.auth_enabled:
-        return redirect(url_for("pydo.index"))
-
-    if session.get("pydo_authenticated"):
-        return redirect(url_for("pydo.index"))
-
-    blocked = service.is_login_blocked()
-    if not blocked and service.read_attempt_count() >= service.settings.max_login_attempts:
-        service.reset_attempt_count()
-
-    form = LoginForm.from_request(request)
-
-    if request.method == "POST":
-        if blocked:
-            flash(
-                "Login blocked after "
-                f"{service.settings.max_login_attempts} failed attempts. "
-                f"Delete {service.settings.auth_block_file} on the server to unlock.",
-                "error",
+        def url_for(endpoint, **values):
+            path = paths.get(endpoint, "/")
+            for key, value in values.items():
+                if "{" + key + "}" in path:
+                    encoded = (
+                        quote(str(value), safe="/")
+                        if key == "filename"
+                        else quote(str(value), safe="")
+                    )
+                    path = path.replace("{" + key + "}", encoded)
+            query = {
+                k: v for k, v in values.items() if "{" + k + "}" not in paths.get(endpoint, "")
+            }
+            return (
+                request.scope.get("root_path", "").rstrip("/")
+                + path
+                + (("?" + urlencode(query)) if query else "")
             )
-            return render_template("pydo/login.html", blocked=True, next_url=form.next_url, attempts_left=0)
 
-        if service.verify_login_password(form.password):
-            session["pydo_authenticated"] = True
-            service.reset_attempt_count()
-            if form.next_url and service.is_safe_next_url(form.next_url):
-                return redirect(form.next_url)
-            return redirect(url_for("pydo.index"))
-
-        attempts = service.record_failed_login()
-        if attempts >= service.settings.max_login_attempts:
-            flash(
-                "Too many failed attempts. Login is blocked. "
-                f"Delete {service.settings.auth_block_file} on the server to unlock.",
-                "error",
-            )
-            return render_template("pydo/login.html", blocked=True, next_url=form.next_url, attempts_left=0)
-
-        attempts_left = service.settings.max_login_attempts - attempts
-        flash(f"Invalid password. {attempts_left} attempt(s) left.", "error")
-        return render_template(
-            "pydo/login.html",
-            blocked=False,
-            next_url=form.next_url,
-            attempts_left=attempts_left,
+        context.update(
+            request=request,
+            pydo_app_version=configured.app_version,
+            pydo_auth_enabled=configured.auth_enabled,
+            pydo_about_url=about_url(request),
+            flashes=flashes,
+            session=request.session if "session" in request.scope else {},
+            get_flashed_messages=lambda with_categories=True: (
+                flashes if with_categories else [m for _, m in flashes]
+            ),
+            url_for=url_for,
+            is_overdue=lambda value: is_overdue(value, configured.now_provider),
+        )
+        return template_engine.TemplateResponse(
+            request=request, name=f"pydo/{page}.html", context=context
         )
 
-    return render_template(
-        "pydo/login.html",
-        blocked=blocked,
-        next_url=form.next_url,
-        attempts_left=service.settings.max_login_attempts,
-    )
+    @app.middleware("http")
+    async def login_gate(request: Request, call_next):
+        if (
+            configured.auth_enabled
+            and request.url.path not in {"/login", "/static"}
+            and not request.url.path.startswith("/static/")
+            and not request.session.get("pydo_authenticated")
+        ):
+            target = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+            return RedirectResponse(
+                local_url(request, "/login") + "?" + urlencode({"next": target}),
+                status_code=302,
+            )
+        return await call_next(request)
 
+    if configured.secret_key:
+        app.add_middleware(
+            SessionMiddleware,
+            secret_key=configured.secret_key,
+            session_cookie=configured.session_cookie_name,
+            same_site="lax",
+            https_only=False,
+        )
 
-@blueprint.route("/logout")
-def logout():
-    session.pop("pydo_authenticated", None)
-    return redirect(url_for("pydo.login"))
+    @app.get("/login", name="pydo.login")
+    async def login_get(request: Request, next: str = ""):
+        if not configured.auth_enabled:
+            return RedirectResponse(local_url(request, "/"), status_code=302)
+        svc = service()
+        return render(
+            request,
+            "login",
+            blocked=svc.is_login_blocked(),
+            next_url=next,
+            attempts_left=max(0, configured.max_login_attempts - svc.read_attempt_count()),
+            max_login_attempts=configured.max_login_attempts,
+            auth_block_file=str(configured.auth_block_file),
+        )
 
+    @app.post("/login", name="pydo.login_post")
+    async def login_post(request: Request):
+        form = await request.form()
+        svc = service()
+        next_url = str(form.get("next", ""))
+        blocked = svc.is_login_blocked()
+        if not blocked and svc.read_attempt_count() >= configured.max_login_attempts:
+            svc.reset_attempt_count()
+        if not blocked and svc.verify_login_password(str(form.get("password", ""))):
+            request.session["pydo_authenticated"] = True
+            svc.reset_attempt_count()
+            target = (
+                next_url
+                if svc.is_safe_next_url(next_url)
+                and next_url.startswith("/")
+                and not next_url.startswith("//")
+                else local_url(request, "/")
+            )
+            return RedirectResponse(target, status_code=302)
+        attempts = svc.record_failed_login() if not blocked else configured.max_login_attempts
+        blocked = blocked or attempts >= configured.max_login_attempts
+        request.session["_flashes"] = [
+            (
+                "error",
+                "Login is blocked after too many failed attempts."
+                if blocked
+                else f"Invalid password. {configured.max_login_attempts - attempts} attempt(s) left.",
+            )
+        ]
+        return render(
+            request,
+            "login",
+            blocked=blocked,
+            next_url=next_url,
+            attempts_left=max(0, configured.max_login_attempts - attempts),
+            max_login_attempts=configured.max_login_attempts,
+            auth_block_file=str(configured.auth_block_file),
+        )
 
-@blueprint.route("/")
-def index():
-    service = get_service()
-    todos = service.get_todos()
-    filter_by = request.args.get("filter", "active")
+    @app.get("/logout", name="pydo.logout")
+    async def logout(request: Request):
+        request.session.clear()
+        return RedirectResponse(local_url(request, "/login"), status_code=302)
 
-    if filter_by == "completed":
-        items = todos.get_completed()
-        sidebar_scope = "completed"
-    elif filter_by == "all":
-        items = todos.todos
-        sidebar_scope = request.args.get("scope", "active")
-    else:
-        items = service.sort_active_items(todos.get_active())
-        sidebar_scope = "active"
+    def render_index(
+        request,
+        items,
+        todos,
+        filter_by="active",
+        filter_value=None,
+        sidebar_scope="active",
+    ):
+        return render(
+            request,
+            "index",
+            **service().build_template_context(
+                todos, items, filter_by, filter_value, sidebar_scope
+            ),
+        )
 
-    context = service.build_template_context(todos, items, filter_by, sidebar_scope=sidebar_scope)
-    return render_template("pydo/index.html", **context)
-
-
-@blueprint.route("/add", methods=["POST"])
-def add_todo():
-    form = AddTodoForm.from_request(request)
-    if not form.text:
-        return redirect(url_for("pydo.index"))
-
-    service = get_service()
-    service.get_todos().add(form.text, priority=form.priority)
-    return redirect(url_for("pydo.index"))
-
-
-@blueprint.route("/toggle/<int:index>", methods=["POST"])
-def toggle_todo(index: int):
-    form = LineActionForm.from_request(request)
-    todos = get_service().get_todos()
-    if form.line:
-        todos.toggle_by_line(form.line)
-    else:
-        todos.toggle(index)
-
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return jsonify({"success": True})
-
-    return redirect(request.referrer or url_for("pydo.index"))
-
-
-@blueprint.route("/delete/<int:index>", methods=["POST"])
-def delete_todo(index: int):
-    form = LineActionForm.from_request(request)
-    todos = get_service().get_todos()
-    if form.line:
-        todos.remove_by_line(form.line)
-    else:
-        todos.remove(index)
-
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return jsonify({"success": True})
-
-    return redirect(request.referrer or url_for("pydo.index"))
-
-
-@blueprint.route("/edit/<int:index>", methods=["POST"])
-def edit_todo(index: int):
-    form = EditTodoForm.from_request(request)
-    if not form.text:
-        return jsonify({"success": False, "error": "Text cannot be empty"}), 400
-
-    todos = get_service().get_todos()
-    updated = False
-
-    if form.old_line:
-        updated = todos.update_by_line(form.old_line, form.text, priority=form.priority, update_priority=True)
-    elif 0 <= index < len(todos.todos):
-        todos.todos[index].text = form.text
-        todos.todos[index].priority = form.priority
-        todos.save()
-        updated = True
-
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        if not updated:
-            return jsonify({"success": False, "error": "Task not found"}), 404
-        return jsonify({"success": True})
-
-    return redirect(request.referrer or url_for("pydo.index"))
-
-
-@blueprint.route("/tomorrow/<int:index>", methods=["POST"])
-def postpone_due_tomorrow(index: int):
-    del index
-    form = LineActionForm.from_request(request)
-    updated = get_service().get_todos().postpone_due_by_line(form.line, days=1) if form.line else False
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        if not updated:
-            return jsonify({"success": False, "error": "Task due date not found"}), 404
-        return jsonify({"success": True})
-    return redirect(request.referrer or url_for("pydo.index"))
-
-
-@blueprint.route("/today/<int:index>", methods=["POST"])
-def set_due_today(index: int):
-    del index
-    form = LineActionForm.from_request(request)
-    service = get_service()
-    updated = service.get_todos().set_due_by_line(form.line, service.today()) if form.line else False
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        if not updated:
-            return jsonify({"success": False, "error": "Task due date not found"}), 404
-        return jsonify({"success": True})
-    return redirect(request.referrer or url_for("pydo.index"))
-
-
-@blueprint.route("/project/<project>")
-def filter_project(project: str):
-    service = get_service()
-    todos = service.get_todos()
-    sidebar_scope = request.args.get("scope", "active")
-    items = [todo for todo in service.get_items_for_scope(todos, sidebar_scope) if project in todo.projects]
-    return render_template(
-        "pydo/index.html",
-        **service.build_template_context(todos, items, "project", project, sidebar_scope=sidebar_scope),
-    )
-
-
-@blueprint.route("/main-project/<main_project>")
-def filter_main_project(main_project: str):
-    service = get_service()
-    todos = service.get_todos()
-    sidebar_scope = request.args.get("scope", "active")
-    items = [todo for todo in service.get_items_for_scope(todos, sidebar_scope) if main_project in todo.main_projects]
-    return render_template(
-        "pydo/index.html",
-        **service.build_template_context(todos, items, "main_project", main_project, sidebar_scope=sidebar_scope),
-    )
-
-
-@blueprint.route("/main-project/<main_project>/project/<project>")
-def filter_main_project_child(main_project: str, project: str):
-    service = get_service()
-    todos = service.get_todos()
-    sidebar_scope = request.args.get("scope", "active")
-    items = [
-        todo for todo in service.get_items_for_scope(todos, sidebar_scope)
-        if main_project in todo.main_projects and project in todo.projects
-    ]
-    return render_template(
-        "pydo/index.html",
-        **service.build_template_context(
-            todos,
+    @app.get("/", name="pydo.index")
+    async def index(request: Request, filter: str = "active", scope: str = "active"):
+        svc, todos = service(), service().get_todos()
+        items = (
+            todos.get_completed()
+            if filter == "completed"
+            else todos.todos
+            if filter == "all"
+            else svc.sort_active_items(todos.get_active())
+        )
+        return render_index(
+            request,
             items,
+            todos,
+            filter,
+            sidebar_scope=scope
+            if filter == "all"
+            else filter
+            if filter == "completed"
+            else "active",
+        )
+
+    @app.post("/add", name="pydo.add_todo")
+    async def add_todo(request: Request):
+        form = await request.form()
+        text = str(form.get("text", "")).strip()
+        if text:
+            service().get_todos().add(text, normalize_priority(str(form.get("priority", ""))))
+        return RedirectResponse(local_url(request, "/"), status_code=302)
+
+    async def mutation(request: Request, action: str, index: int):
+        form = await request.form()
+        todos = service().get_todos()
+        line = str(form.get("line", "")).strip()
+        if action == "toggle":
+            todos.toggle_by_line(line) if line else todos.toggle(index)
+            success, error = True, ""
+        elif action == "delete":
+            todos.remove_by_line(line) if line else todos.remove(index)
+            success, error = True, ""
+        elif action == "edit":
+            text = str(form.get("text", "")).strip()
+            if not text:
+                success, error = False, "Text cannot be empty"
+            elif line:
+                success, error = (
+                    todos.update_by_line(
+                        line,
+                        text,
+                        normalize_priority(str(form.get("priority", ""))),
+                        True,
+                    ),
+                    "Task not found",
+                )
+            elif 0 <= index < len(todos.todos):
+                todos.todos[index].text = text
+                todos.todos[index].priority = normalize_priority(str(form.get("priority", "")))
+                todos.save()
+                success, error = True, ""
+            else:
+                success, error = False, "Task not found"
+        elif action in {"today", "tomorrow"}:
+            success = (
+                todos.set_due_by_line(line, service().today())
+                if action == "today" and line
+                else todos.postpone_due_by_line(line, 1)
+                if line
+                else False
+            )
+            error = "Task due date not found"
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JSONResponse(
+                {"success": success, **({"error": error} if not success else {})},
+                status_code=400 if error == "Text cannot be empty" else 404 if not success else 200,
+            )
+        return RedirectResponse(safe_referrer(request), status_code=302)
+
+    for action in ("toggle", "delete", "edit", "today", "tomorrow"):
+
+        async def endpoint(request: Request, index: int, _action=action):
+            return await mutation(request, _action, index)
+
+        app.add_api_route(
+            f"/{action}/{{index}}",
+            endpoint,
+            methods=["POST"],
+            name=f"pydo.{action}_todo",
+        )
+
+    @app.get("/project/{project}", name="pydo.filter_project")
+    async def project(request: Request, project: str, scope: str = "active"):
+        svc = service()
+        todos = svc.get_todos()
+        items = [t for t in svc.get_items_for_scope(todos, scope) if project in t.projects]
+        return render_index(request, items, todos, "project", project, scope)
+
+    @app.get("/main-project/{main_project}", name="pydo.filter_main_project")
+    async def main_project(request: Request, main_project: str, scope: str = "active"):
+        svc = service()
+        todos = svc.get_todos()
+        items = [
+            t for t in svc.get_items_for_scope(todos, scope) if main_project in t.main_projects
+        ]
+        return render_index(request, items, todos, "main_project", main_project, scope)
+
+    @app.get(
+        "/main-project/{main_project}/project/{project}",
+        name="pydo.filter_main_project_child",
+    )
+    async def child(request: Request, main_project: str, project: str, scope: str = "active"):
+        svc = service()
+        todos = svc.get_todos()
+        items = [
+            t
+            for t in svc.get_items_for_scope(todos, scope)
+            if main_project in t.main_projects and project in t.projects
+        ]
+        return render_index(
+            request,
+            items,
+            todos,
             "main_project_child",
             {"main_project": main_project, "project": project},
-            sidebar_scope=sidebar_scope,
-        ),
+            scope,
+        )
+
+    @app.get(
+        "/main-project/{main_project}/no-subproject",
+        name="pydo.filter_main_project_no_subproject",
     )
+    async def no_child(request: Request, main_project: str, scope: str = "active"):
+        svc = service()
+        todos = svc.get_todos()
+        items = [
+            t
+            for t in svc.get_items_for_scope(todos, scope)
+            if main_project in t.main_projects and not t.projects
+        ]
+        return render_index(
+            request, items, todos, "main_project_no_subproject", main_project, scope
+        )
 
+    @app.get("/context/{context}", name="pydo.filter_context")
+    async def context(request: Request, context: str, scope: str = "active"):
+        svc = service()
+        todos = svc.get_todos()
+        items = [t for t in svc.get_items_for_scope(todos, scope) if context in t.contexts]
+        return render_index(request, items, todos, "context", context, scope)
 
-@blueprint.route("/main-project/<main_project>/no-subproject")
-def filter_main_project_no_subproject(main_project: str):
-    service = get_service()
-    todos = service.get_todos()
-    sidebar_scope = request.args.get("scope", "active")
-    items = [
-        todo for todo in service.get_items_for_scope(todos, sidebar_scope)
-        if main_project in todo.main_projects and not todo.projects
-    ]
-    return render_template(
-        "pydo/index.html",
-        **service.build_template_context(
+    @app.get("/priority/{priority}", name="pydo.filter_priority")
+    async def priority(request: Request, priority: str, scope: str = "active"):
+        svc = service()
+        todos = svc.get_todos()
+        p = priority.upper()
+        if p not in {"A", "B", "C"}:
+            return RedirectResponse(
+                local_url(request, "/") + "?" + urlencode({"filter": scope}),
+                status_code=302,
+            )
+        return render_index(
+            request,
+            [t for t in svc.get_items_for_scope(todos, scope) if t.priority == p],
             todos,
-            items,
-            "main_project_no_subproject",
-            main_project,
-            sidebar_scope=sidebar_scope,
-        ),
-    )
-
-
-@blueprint.route("/context/<context>")
-def filter_context(context: str):
-    service = get_service()
-    todos = service.get_todos()
-    sidebar_scope = request.args.get("scope", "active")
-    items = [todo for todo in service.get_items_for_scope(todos, sidebar_scope) if context in todo.contexts]
-    return render_template(
-        "pydo/index.html",
-        **service.build_template_context(todos, items, "context", context, sidebar_scope=sidebar_scope),
-    )
-
-
-@blueprint.route("/priority/<priority>")
-def filter_priority(priority: str):
-    service = get_service()
-    todos = service.get_todos()
-    sidebar_scope = request.args.get("scope", "active")
-    normalized_priority = (priority or "").strip().upper()
-    if normalized_priority not in {"A", "B", "C"}:
-        return redirect(url_for("pydo.index", filter=sidebar_scope))
-
-    items = [todo for todo in service.get_items_for_scope(todos, sidebar_scope) if todo.priority == normalized_priority]
-    return render_template(
-        "pydo/index.html",
-        **service.build_template_context(
-            todos,
-            items,
             "priority",
-            normalized_priority,
-            sidebar_scope=sidebar_scope,
-        ),
-    )
+            p,
+            scope,
+        )
 
+    @app.get("/due/{date}", name="pydo.filter_due")
+    async def due(request: Request, date: str):
+        svc = service()
+        todos = svc.get_todos()
+        return render_index(
+            request,
+            [t for t in todos.todos if t.custom_fields.get("due") == date and not t.complete],
+            todos,
+            "due",
+            date,
+        )
 
-@blueprint.route("/due/<date>")
-def filter_due(date: str):
-    service = get_service()
-    todos = service.get_todos()
-    items = [todo for todo in todos.todos if todo.custom_fields.get("due") == date and not todo.complete]
-    return render_template(
-        "pydo/index.html",
-        **service.build_template_context(todos, items, "due", date, sidebar_scope="active"),
-    )
+    @app.get("/waiting", name="pydo.filter_waiting")
+    async def waiting(request: Request, scope: str = "active"):
+        svc = service()
+        todos = svc.get_todos()
+        return render_index(
+            request,
+            [
+                t
+                for t in svc.get_items_for_scope(todos, scope)
+                if "waiting" in t.contexts or t.custom_fields.get("waiting")
+            ],
+            todos,
+            "waiting",
+            None,
+            scope,
+        )
 
+    @app.get("/waiting/{person}", name="pydo.filter_waiting_for")
+    async def waiting_person(request: Request, person: str, scope: str = "active"):
+        svc = service()
+        todos = svc.get_todos()
+        return render_index(
+            request,
+            [
+                t
+                for t in svc.get_items_for_scope(todos, scope)
+                if t.custom_fields.get("waiting", "").lower() == person.lower()
+            ],
+            todos,
+            "waiting_for",
+            person,
+            scope,
+        )
 
-@blueprint.route("/waiting")
-def filter_waiting():
-    service = get_service()
-    todos = service.get_todos()
-    sidebar_scope = request.args.get("scope", "active")
-    items = [
-        todo for todo in service.get_items_for_scope(todos, sidebar_scope)
-        if "waiting" in todo.contexts or todo.custom_fields.get("waiting")
-    ]
-    return render_template(
-        "pydo/index.html",
-        **service.build_template_context(todos, items, "waiting", sidebar_scope=sidebar_scope),
-    )
+    @app.exception_handler(404)
+    async def not_found(request: Request, exc):
+        response = render(request, "404")
+        response.status_code = 404
+        return response
 
+    @app.exception_handler(500)
+    async def server_error(request: Request, exc):
+        response = render(request, "500")
+        response.status_code = 500
+        return response
 
-@blueprint.route("/waiting/<person>")
-def filter_waiting_for(person: str):
-    service = get_service()
-    todos = service.get_todos()
-    sidebar_scope = request.args.get("scope", "active")
-    items = [
-        todo for todo in service.get_items_for_scope(todos, sidebar_scope)
-        if todo.custom_fields.get("waiting", "").lower() == person.lower()
-    ]
-    return render_template(
-        "pydo/index.html",
-        **service.build_template_context(todos, items, "waiting_for", person, sidebar_scope=sidebar_scope),
-    )
-
-
-@blueprint.app_errorhandler(404)
-def not_found(error):
-    del error
-    return render_template("pydo/404.html"), 404
-
-
-@blueprint.app_errorhandler(500)
-def server_error(error):
-    del error
-    return render_template("pydo/500.html"), 500
-
-
-blueprint.add_app_template_filter(count_with_project, "count_with_project")
-blueprint.add_app_template_filter(count_with_context, "count_with_context")
-blueprint.add_app_template_filter(count_waiting_for, "count_waiting_for")
-blueprint.add_app_template_filter(count_with_priority, "count_with_priority")
-blueprint.add_app_template_filter(is_duration_context, "is_duration_context")
-blueprint.add_app_template_filter(format_date, "format_date")
-blueprint.add_app_template_filter(format_due_date, "format_due_date")
-blueprint.add_app_template_filter(external_link_href, "external_link_href")
-blueprint.add_app_template_filter(lambda value: is_overdue(value, now_provider=get_service().settings.now_provider), "is_overdue")
+    return app

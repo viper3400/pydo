@@ -4,9 +4,9 @@ Guidance for AI/code agents working in this repository.
 
 ## 1. Scope
 
-- Flask plugin package with file-backed todo state.
+- FastAPI plugin package for FeedVanta with file-backed todo state.
 - Core split:
-  - `src/flask_plugin_pydo/routes.py`: blueprint routes and request handling.
+  - `src/flask_plugin_pydo/routes.py`: ASGI app factory, routes, and request handling.
   - `src/flask_plugin_pydo/services.py`: runtime service layer and todo operations.
   - `src/flask_plugin_pydo/models.py`: parsing and serialization models.
   - `src/flask_plugin_pydo/forms.py`: request parsing helpers.
@@ -17,6 +17,8 @@ Prefer minimal, reversible changes.
 ## 2. Architecture Contracts
 
 - Keep controller flow in `routes.py`; keep business logic in `services.py` and parsing/model rules in `models.py`.
+- Export a `tool_host.plugins.Plugin` instance from `plugin.py`, mounted at `/pydo`; do not add Flask or a Flask-to-ASGI bridge.
+- Keep app settings and template environments isolated per `create_app` call.
 - Keep plugin package version resolution centralized; use `src/flask_plugin_pydo/versioning.py` as the shared source for plugin version display and `PLUGIN["version"]`.
 - Use stable task identity for mutations from filtered/sorted UI (line-based, not visible index).
 - Keep active-list sort/group behavior aligned between `services.py` and `templates/pydo/index.html`.
@@ -44,6 +46,7 @@ Prefer minimal, reversible changes.
   - `PYTODO_PASSWORD` or `PYTODO_PASSWORD_HASH`
   - `SECRET_KEY`
   - `PYTODO_SESSION_COOKIE_NAME` (defaults to `pytodo_session`)
+- Authentication requires a configured `SECRET_KEY`; do not substitute a fixed or silently generated production secret.
 - Preserve login gate, failed-attempt accounting, and lock-file flow unless explicitly requested otherwise.
 - Plugin host config keys include:
   - `PYDO_TODO_FILE`
@@ -72,6 +75,7 @@ Prefer minimal, reversible changes.
 - Do not introduce heavy new dependencies unless necessary.
 - Keep plugin integration and auth docs copy-paste friendly.
 - Keep reverse-proxy compatibility for path-prefix deployments (for example `/pydo`) by preserving forwarded-prefix behavior.
+- FeedVanta currently provides `tool_host.plugins`; the host must be installed in the same environment as this package.
 - Plugin package releases use tags named `plugin-pydo-vX.Y.Z` and build from repo root.
 - `pyproject.toml` `project.version` is the manual source of truth for plugin releases; release tags must match it.
 

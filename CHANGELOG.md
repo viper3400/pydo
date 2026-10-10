@@ -5,9 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0]
 
 ### Changed
+- Ported the plugin integration from Flask to FastAPI and FeedVanta's `tool_host.plugins` contract.
+- Replaced the Flask entry point and development runner with an ASGI app factory mounted at `/pydo`.
+- Updated package metadata and documentation for FastAPI dependencies, host discovery, and configuration.
 - Repository flattened into a plugin-only package layout rooted at `src/flask_plugin_pydo`.
 - Standalone Flask app, container runtime files, and standalone test suite removed from the repo.
 - Root README, AGENTS guidance, and CI workflows now target plugin installation, testing, and release flow only.
