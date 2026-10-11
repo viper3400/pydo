@@ -50,24 +50,30 @@ def test_feedvanta_discovers_and_mounts_plugin(tmp_path):
     assert 'href="/suburl/about"' in proxied.text
 
 
-@pytest.mark.skipif(
-    importlib.util.find_spec("tool_host") is None,
-    reason="FeedVanta host contract is not installed",
-)
 def test_auth_login_works_with_host_forwarded_prefix(tmp_path):
+    from fastapi import FastAPI, Request
     from fastapi.testclient import TestClient
-    from tool_host.app import create_app
-    from tool_host.plugins import Plugin
 
-    from flask_plugin_pydo.plugin import PLUGIN
+    from flask_plugin_pydo.routes import create_app
 
-    plugin = Plugin(
-        PLUGIN.id,
-        PLUGIN.name,
-        PLUGIN.description,
-        PLUGIN.version,
-        PLUGIN.path,
-        lambda: PLUGIN.app_factory(
+    host = FastAPI()
+
+    # Mirror PyHost's X-Forwarded-Prefix middleware: retain the external path
+    # and put the prefix in root_path for Starlette's mounted-app router.
+    @host.middleware("http")
+    async def forwarded_prefix(request: Request, call_next):
+        prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
+        if prefix:
+            request.scope["root_path"] = prefix
+            path = request.scope["path"]
+            if path != prefix and not path.startswith(prefix + "/"):
+                request.scope["path"] = prefix + path
+                request.scope["raw_path"] = (prefix + path).encode()
+        return await call_next(request)
+
+    host.mount(
+        "/pydo",
+        create_app(
             {
                 "PYDO_TODO_FILE": str(tmp_path / "todo.txt"),
                 "SECRET_KEY": "host-test",
@@ -75,7 +81,7 @@ def test_auth_login_works_with_host_forwarded_prefix(tmp_path):
             }
         ),
     )
-    client = TestClient(create_app([plugin]))
+    client = TestClient(host)
 
     login_page = client.get(
         "/pydo/login", headers={"X-Forwarded-Prefix": "/pyhost"}, follow_redirects=False
@@ -90,3 +96,7 @@ def test_auth_login_works_with_host_forwarded_prefix(tmp_path):
     )
     assert response.status_code == 302
     assert response.headers["location"] == "/pyhost/pydo/"
+    authenticated_page = client.get(
+        "/pydo/", headers={"X-Forwarded-Prefix": "/pyhost"}, follow_redirects=False
+    )
+    assert authenticated_page.status_code == 200

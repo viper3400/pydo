@@ -75,7 +75,7 @@ Prefer minimal, reversible changes.
 - Do not introduce heavy new dependencies unless necessary.
 - Keep plugin integration and auth docs copy-paste friendly.
 - Keep reverse-proxy compatibility for path-prefix deployments (for example `/pydo`) by preserving forwarded-prefix behavior.
-- Auth route exemptions must match the mounted app's local ASGI path, not a URL path containing proxy or mount prefixes.
+- Auth route exemptions must be matched after removing the mounted app's `root_path` from the externally visible path.
 - FeedVanta currently provides `tool_host.plugins`; the host must be installed in the same environment as this package.
 - Plugin package releases use tags named `plugin-pydo-vX.Y.Z` and build from repo root.
 - `pyproject.toml` `project.version` is the manual source of truth for plugin releases; release tags must match it.
