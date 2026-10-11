@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pydo-fastapi-plugin"
-version = "2.0.0"
+version = "2.1.0"
 description = "PyDo todo.txt plugin for FeedVanta's FastAPI tool host."
 readme = "README.md"
 requires-python = ">=3.13"
