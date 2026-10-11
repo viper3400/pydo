@@ -144,10 +144,14 @@ def create_app(settings: PydoSettings | dict | None = None) -> FastAPI:
 
     @app.middleware("http")
     async def login_gate(request: Request, call_next):
+        # A mounted ASGI app receives its local route in scope["path"].
+        # request.url.path can include the proxy/mount prefix and thus won't
+        # match /login when the app is served below a prefixed URL.
+        app_path = request.scope.get("path", request.url.path)
         if (
             configured.auth_enabled
-            and request.url.path not in {"/login", "/static"}
-            and not request.url.path.startswith("/static/")
+            and app_path not in {"/login", "/static"}
+            and not app_path.startswith("/static/")
             and not request.session.get("pydo_authenticated")
         ):
             target = request.url.path + (f"?{request.url.query}" if request.url.query else "")
