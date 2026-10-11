@@ -27,7 +27,7 @@ from flask_plugin_pydo import create_app
 app = create_app({"PYDO_TODO_FILE": "/path/to/todo.txt", "SECRET_KEY": "replace-with-a-secret"})
 ```
 
-Run it with an ASGI server such as Uvicorn. When embedding the app beneath a path, mount it as a sub-application; the host mount path is supplied by ASGI `root_path` and used for generated links. Password login also works when the host or reverse proxy serves PyDo beneath a URL prefix.
+Run it with an ASGI server such as Uvicorn. When embedding the app beneath a path, mount it as a sub-application; the host mount path is supplied by ASGI `root_path` and used for generated links. Password login also works when the host or reverse proxy serves PyDo beneath a URL prefix: the login page remains reachable at the prefixed `/pydo/login` URL, and a successful login returns to the requested prefixed page.
 
 ## Configuration
 
